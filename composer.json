@@ -1,0 +1,5 @@
+{
+    "require-dev": {
+        "sebastian/diff": "^4.0"
+    }
+}
