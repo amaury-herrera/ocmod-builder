@@ -5,7 +5,7 @@ use SebastianBergmann\Diff\Differ;
 
 set_time_limit(0);
 
-include_once('make-ocmod.cfg.php');
+include_once('ocmod-builder.cfg.php');
 include_once(SOURCE_ROOT_PATH . '/config.php');
 
 define("TAG_SEARCH_BEGIN", "<search");
@@ -265,11 +265,11 @@ function updateConfig()
             }))
     );
 
-    $content = file_get_contents('make-ocmod.cfg.php');
+    $content = file_get_contents('ocmod-builder.cfg.php');
 
     if ($content) {
         $content = preg_replace('/\$upload\s+=\s+\[[^\]]*\]/', sprintf('$upload = %s', json_encode($upload, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT, 2)), $content);
-        file_put_contents('make-ocmod.cfg.php', $content);
+        file_put_contents('ocmod-builder.cfg.php', $content);
     }
 }
 
