@@ -14,19 +14,24 @@ The main advantage of **OCMod builder** is that it allows you to write changes d
 - Add the following templates to your IDE (in PhpStorm you will need to open $Settings/Editor/Live templates$ to add them and use Ctrl + J to insert them).
 
   **PHP** y **Javascript**
-  //&lt;OCMOD&gt;  
+
+  //&lt;OCMOD&gt;
+  <br>
   //&lt;search trim="false"&gt;\$SEARCH\$&lt;/search&gt;
+  <br>
   //&lt;add position="\$POSITION\$" TRIM&gt;
+  <br>
   \$ADD\$  
   //&lt;/add&gt;
+  <br>
   //&lt;/OCMOD&gt;
 
   **Twig**
-  {#&lt;OCMOD&gt;#}
-  {#&lt;search>\$SEARCH\$&lt;/search&gt;#}
-  {#&lt;add position="\$before\$" TRIM&gt;#}
-  \$CODE\$
-  {#&lt;/add&gt;#}
+  {#&lt;OCMOD&gt;#}<br>
+  {#&lt;search>\$SEARCH\$&lt;/search&gt;#}<br>
+  {#&lt;add position="\$before\$" TRIM&gt;#}<br>
+  \$CODE\$<br>
+  {#&lt;/add&gt;#}<br>
   {#&lt;/OCMOD&gt;#}
 
   Values between \$ are used in PhpStorm to set the texts you can edit when inserting the template. You may need to adjust the template if you use another IDE.
@@ -66,19 +71,23 @@ La principal ventaja de **OCMod builder** es la de permitir escribir los cambios
 - Agregue las siguientes plantillas en su IDE (en PhpStorm deberá abrir $Settings/Editor/Live templates$ para añadirlas y utilizar las teclas Ctrl + J para insertarlas).
 
   **PHP** y **Javascript**
-  //&lt;OCMOD&gt;  
+  //&lt;OCMOD&gt;
+  <br>
   //&lt;search trim="false"&gt;\$SEARCH\$&lt;/search&gt;
+  <br>
   //&lt;add position="\$POSITION\$" TRIM&gt;
+  <br>
   \$ADD\$  
   //&lt;/add&gt;
+  <br>
   //&lt;/OCMOD&gt;
 
   **Twig**
-  {#&lt;OCMOD&gt;#}
-  {#&lt;search>\$SEARCH\$&lt;/search&gt;#}
-  {#&lt;add position="\$before\$" TRIM&gt;#}
-  \$CODE\$
-  {#&lt;/add&gt;#}
+  {#&lt;OCMOD&gt;#}<br>
+  {#&lt;search>\$SEARCH\$&lt;/search&gt;#}<br>
+  {#&lt;add position="\$before\$" TRIM&gt;#}<br>
+  \$CODE\$<br>
+  {#&lt;/add&gt;#}<br>
   {#&lt;/OCMOD&gt;#}
 
   Los valores entre \$ se utilizan en PhpStorm para establecer los textos que puede editar al insertar la plantilla. Es posible que deba ajustar la plantilla si utiliza otro IDE.
