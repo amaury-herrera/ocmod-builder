@@ -45,10 +45,9 @@ You can add new files inside the folders of your OpenCart copy, **OCMod builder*
 
 
 #### Example:
-OCMOD
+
 ![Example 1](images/example1.png)
 
-Result
 ![Example 2](images/example2.png)
 
 ## Español
@@ -97,8 +96,7 @@ Dentro de la etiqueta &lt;add&gt; puede utilizar los siguientes "atributos" para
 Puede agregar nuevos archivos dentro de las carpetas de la copia de OpenCart, **OCMod builder** los detectará y los incluirá en la carpeta **upload** al generar el .zip y actualizará la variable $\$upload$ en el archivo **ocmod-builder.cfg.php** con la lista de nuevos archivos encontrados. Lo mismo ocurrirá si elimina alguno de estos archivos.
 
 #### Ejemplo:
-OCMOD
+
 ![Example 1](images/example1.png)
 
-Resultado
 ![Example 2](images/example2.png)
