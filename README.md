@@ -8,7 +8,7 @@ The main advantage of **OCMod builder** is that it allows you to write changes d
 ### Prepare the environment
 
 - Place the **OCMod builder** files in a folder on your local web server, for example www/ocmod-builder if you are using Wamp.
-- Edit the **ocmod-builder.cfg.php** file and update the constant values according to your environment and the output data from the **install.xml** file.
+- Edit the **ocmod-builder.cfg.php** file and update the constant values according to your environment and the output data in the **install.xml** file.
 - Open the browser and click on the **Restore OpenCart Copy** button, this will create a copy of the OpenCart files in the folder set in the ROOT_PATH constant.
 - Start your IDE and open as a project the folder configured in the ROOT_PATH constant, which contains the copy of OpenCart you will be working with.
 - Add the following templates to your IDE (in PhpStorm you will need to open $Settings/Editor/Live templates$ to add them and use Ctrl + J to insert them).
