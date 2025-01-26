@@ -49,7 +49,7 @@ OCMOD
 ![Example 1](images/example1.png)
 
 Result
-![Example 1](images/example2.png)
+![Example 2](images/example2.png)
 
 ## Español
 **OCMod builder** es una herramienta pensada para facilitar la creación de archivos de modificación para OpenCart, que de otra forma es una tarea engorrosa.
@@ -101,4 +101,4 @@ OCMOD
 ![Example 1](images/example1.png)
 
 Resultado
-![Example 1](images/example2.png)
+![Example 2](images/example2.png)
