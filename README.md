@@ -17,24 +17,24 @@ The main advantage of **OCMod builder** is that it allows you to write changes d
 
   //&lt;OCMOD&gt;
   <br>
-  //&lt;search trim="false"&gt;\$SEARCH\$&lt;/search&gt;
+  //&lt;search trim="false"&gt;&dollar;SEARCH&dollar;&lt;/search&gt;
   <br>
-  //&lt;add position="\$POSITION\$" TRIM&gt;
+  //&lt;add position="&dollar;POSITION&dollar;" TRIM&gt;
   <br>
-  \$ADD\$  
+  &dollar;ADD&dollar;  
   //&lt;/add&gt;
   <br>
   //&lt;/OCMOD&gt;
 
   **Twig**
   {#&lt;OCMOD&gt;#}<br>
-  {#&lt;search>\$SEARCH\$&lt;/search&gt;#}<br>
-  {#&lt;add position="\$before\$" TRIM&gt;#}<br>
-  \$CODE\$<br>
+  {#&lt;search>&dollar;SEARCH&dollar;&lt;/search&gt;#}<br>
+  {#&lt;add position="&dollar;before&dollar;" TRIM&gt;#}<br>
+  &dollar;CODE&dollar;<br>
   {#&lt;/add&gt;#}<br>
   {#&lt;/OCMOD&gt;#}
 
-  Values between \$ are used in PhpStorm to set the texts you can edit when inserting the template. You may need to adjust the template if you use another IDE.
+  Values between &dollar; are used in PhpStorm to set the texts you can edit when inserting the template. You may need to adjust the template if you use another IDE.
 
 ### Writing code
 
@@ -43,10 +43,10 @@ Open the file you need to modify and insert the template where the change needs 
 Inside the &lt;add&gt; tag you can use the following "attributes" to perform some actions before inserting the code into the XML (install.xml). Note that they must be written in uppercase.
 
 - TRIM, LTRIM and RTRIM apply the same PHP function (trim, ltrim and rtrim) to the content of the <add> tag.
-- APPEND="xxx" Adds the value in quotes to the end of the content of &lt;add&gt;. For example: APPEND="$1", if you use regex="true" and you want to add \$1 at the end inside PHP code (the IDE would show this as an error).
+- APPEND="xxx" Adds the value in quotes to the end of the content of &lt;add&gt;. For example: APPEND="$1", if you use regex="true" and you want to add &dollar;1 at the end inside PHP code (the IDE would show this as an error).
   -PREPEND="xxx" Does the same thing as append, but adds it to the beginning of the contents of &lt;add&gt;.
 
-You can add new files inside the folders of your OpenCart copy, **OCMod builder** will detect them and include them in the **upload** folder when generating the .zip and will update the $\$upload$ variable in the **ocmod-builder.cfg.php** file with the list of new files found. The same will happen if you delete any of these files.
+You can add new files inside the folders of your OpenCart copy, **OCMod builder** will detect them and include them in the **upload** folder when generating the .zip and will update the $&dollar;upload$ variable in the **ocmod-builder.cfg.php** file with the list of new files found. The same will happen if you delete any of these files.
 
 
 #### Example:
@@ -73,24 +73,24 @@ La principal ventaja de **OCMod builder** es la de permitir escribir los cambios
   **PHP** y **Javascript**
   //&lt;OCMOD&gt;
   <br>
-  //&lt;search trim="false"&gt;\$SEARCH\$&lt;/search&gt;
+  //&lt;search trim="false"&gt;&dollar;SEARCH&dollar;&lt;/search&gt;
   <br>
-  //&lt;add position="\$POSITION\$" TRIM&gt;
+  //&lt;add position="&dollar;POSITION&dollar;" TRIM&gt;
   <br>
-  \$ADD\$  
+  &dollar;ADD&dollar;  
   //&lt;/add&gt;
   <br>
   //&lt;/OCMOD&gt;
 
   **Twig**
   {#&lt;OCMOD&gt;#}<br>
-  {#&lt;search>\$SEARCH\$&lt;/search&gt;#}<br>
-  {#&lt;add position="\$before\$" TRIM&gt;#}<br>
-  \$CODE\$<br>
+  {#&lt;search>&dollar;SEARCH&dollar;&lt;/search&gt;#}<br>
+  {#&lt;add position="&dollar;before&dollar;" TRIM&gt;#}<br>
+  &dollar;CODE&dollar;<br>
   {#&lt;/add&gt;#}<br>
   {#&lt;/OCMOD&gt;#}
 
-  Los valores entre \$ se utilizan en PhpStorm para establecer los textos que puede editar al insertar la plantilla. Es posible que deba ajustar la plantilla si utiliza otro IDE.
+  Los valores entre &dollar; se utilizan en PhpStorm para establecer los textos que puede editar al insertar la plantilla. Es posible que deba ajustar la plantilla si utiliza otro IDE.
 
 ### Escribiendo código
 
@@ -99,10 +99,10 @@ Abra el archivo que debe modificar e inserte la plantilla en el lugar donde debe
 Dentro de la etiqueta &lt;add&gt; puede utilizar los siguientes "atributos" para realizar algunas acciones antes de insertar el código en el XML (install.xml). Note que deben escribirse en mayúsculas.
 
 - TRIM, LTRIM y RTRIM aplican la misma función de PHP (trim, ltrim y rtrim) al contenido de la etiqueta <add>.
-- APPEND="xxx" Agrega el valor entre comillas al final del contenido de &lt;add&gt;. Por ejemplo: APPEND="$1", si se usa regex="true" y se desea añadir \$1 al final dentro de código PHP (el IDE lo mostraría como error).
+- APPEND="xxx" Agrega el valor entre comillas al final del contenido de &lt;add&gt;. Por ejemplo: APPEND="$1", si se usa regex="true" y se desea añadir &dollar;1 al final dentro de código PHP (el IDE lo mostraría como error).
   -PREPEND="xxx" Hace lo mismo que append, pero lo agrega al comienzo del contenido de &lt;add&gt;.
 
-Puede agregar nuevos archivos dentro de las carpetas de la copia de OpenCart, **OCMod builder** los detectará y los incluirá en la carpeta **upload** al generar el .zip y actualizará la variable $\$upload$ en el archivo **ocmod-builder.cfg.php** con la lista de nuevos archivos encontrados. Lo mismo ocurrirá si elimina alguno de estos archivos.
+Puede agregar nuevos archivos dentro de las carpetas de la copia de OpenCart, **OCMod builder** los detectará y los incluirá en la carpeta **upload** al generar el .zip y actualizará la variable $&dollar;upload$ en el archivo **ocmod-builder.cfg.php** con la lista de nuevos archivos encontrados. Lo mismo ocurrirá si elimina alguno de estos archivos.
 
 #### Ejemplo:
 
