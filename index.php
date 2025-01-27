@@ -4,6 +4,7 @@ require 'vendor/autoload.php';
 use SebastianBergmann\Diff\Differ;
 
 set_time_limit(0);
+session_start();
 
 include_once('ocmod-builder.cfg.php');
 include_once(SOURCE_ROOT_PATH . '/config.php');
@@ -13,10 +14,7 @@ define("TAG_SEARCH_END", "</search>");
 define("TAG_ADD_BEGIN", "<add");
 define("TAG_ADD_END", "</add>");
 
-$createZip = false;
-$restore = false;
-$zipCreated = false;
-$changedFiles = [];
+$action = '';
 
 $commandLine = empty($_SERVER['HTTP_HOST']);
 
@@ -63,16 +61,7 @@ if (!empty($_POST)) {
     return;
 } else {
     if (!empty($_GET)) {
-        $createZip = @$_GET['action'] == 'create_zip';
-        $restore = !$createZip && @$_GET['action'] == 'restore';
-    } else {
-        if (!empty($argv) && count($argv) > 1) {
-            if ($argv[1] == 'create_zip' || $argv[1] == 'restore') {
-                $createZip = $argv[1] == 'create_zip';
-                $restore = $argv[1] == 'restore';
-            } else
-                return;
-        }
+        $action = @$_GET['action'];
     }
 }
 
@@ -196,7 +185,10 @@ function processFile($fileName, $relativePath)
     }
 
     if ($operations) {
-        $changedFiles[] = trim(str_replace(SOURCE_ROOT_PATH, '', $srcFileName), '/\\');
+        $newFile = trim(str_replace(SOURCE_ROOT_PATH, '', $srcFileName), '/\\');
+        if (!in_array($newFile, $changedFiles))
+            $changedFiles[] = $newFile;
+
         if (substr($xml, -7) == '</file>')
             $xml .= "\r\n";
         $xml .= "
@@ -253,7 +245,14 @@ function delTree($dir, $delRoot = false)
 
 function updateConfig()
 {
-    global $upload;
+    global $upload, $changedFiles;
+
+    $changedFiles = array_map(
+        function ($file) {
+            return str_replace('\\', '/', $file);
+        },
+        $changedFiles
+    );
 
     $upload = array_map(
         function ($file) {
@@ -268,6 +267,7 @@ function updateConfig()
     $content = file_get_contents('ocmod-builder.cfg.php');
 
     if ($content) {
+        $content = preg_replace('/\$changedFiles\s+=\s+\[[^\]]*\]/', sprintf('$changedFiles = %s', json_encode($changedFiles, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT, 2)), $content);
         $content = preg_replace('/\$upload\s+=\s+\[[^\]]*\]/', sprintf('$upload = %s', json_encode($upload, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT, 2)), $content);
         file_put_contents('ocmod-builder.cfg.php', $content);
     }
@@ -324,14 +324,15 @@ if (!empty($exclude)) {
 
 // Nombre del archivo ZIP que se va a crear
 if (empty($zipFileName))
-    $zipFileName = 'mi_archivo.ocmod.zip';
+    $zipFileName = 'modification.ocmod.zip';
 else
     if (substr($zipFileName, -10) != '.ocmod.zip')
         $zipFileName .= '.ocmod.zip';
 
-if ($createZip) {
-    $xml = trim("
-<?xml version=\"1.0\" encoding=\"" . ENCODING . "\"?>
+switch ($action) {
+    case 'create_zip':
+        if (!(empty($changedFiles) && empty($upload))) {
+            $xml = trim("<?xml version=\"1.0\" encoding=\"" . ENCODING . "\"?>
 <modification>
   <name>" . NAME . "</name>
   <code>" . CODE . "</code>
@@ -339,79 +340,87 @@ if ($createZip) {
   <author>" . AUTHOR . "</author>
 ");
 
-    if (LINK)
-        $xml .= "  <link>" . LINK . "</link>";
+            if (LINK)
+                $xml .= "  <link>" . LINK . "</link>";
 
-    processDir(ROOT_PATH, true);
+            foreach ($changedFiles as $file) {
+                processFile(ROOT_PATH . DIRECTORY_SEPARATOR . $file, '');
+            }
 
-    if (!empty($force_include_dirs)) {
-        foreach ($force_include_dirs as $dir) {
-            processDir(trim(ROOT_PATH, '\\/') . DIRECTORY_SEPARATOR . trim($dir, '\\/'), false);
-        }
-    }
-
-    $xml .= "
+            $xml .= "
 </modification>";
 
-    updateConfig();
+            updateConfig();
 
-    if (is_dir('publish'))
-        delTree('publish');
+            if (is_dir('publish'))
+                delTree('publish');
 
-    file_put_contents('publish/install.xml', $xml);
+            file_put_contents('publish/install.xml', $xml);
 
-    if (!empty($sql))
-        file_put_contents('publish/install.sql', $sql);
+            if (!empty($sql))
+                file_put_contents('publish/install.sql', $sql);
 
-    if (!empty($upload)) {
-        foreach ($upload as $file) {
-            $srcFile = ROOT_PATH . (@$file[0] === '/' ? '' : '/') . $file;
+            if (!empty($upload)) {
+                foreach ($upload as $file) {
+                    $srcFile = ROOT_PATH . (@$file[0] === '/' ? '' : '/') . $file;
 
-            if (!file_exists($srcFile))
-                continue;
+                    if (!file_exists($srcFile))
+                        continue;
 
-            $dstFile = 'publish/upload' . (@$file[0] === '/' ? '' : '/') . $file;
+                    $dstFile = 'publish/upload' . (@$file[0] === '/' ? '' : '/') . $file;
 
-            if (!is_dir(dirname($dstFile)))
-                mkdir(dirname($dstFile), 0777, true);
+                    if (!is_dir(dirname($dstFile)))
+                        mkdir(dirname($dstFile), 0777, true);
 
-            copy($srcFile, $dstFile);
-        }
-    }
-
-    $zip = new ZipArchive();
-
-    if ($zip->open($zipFileName, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-        $filesToAdd = scandir('publish');
-
-        // Agregar archivos al ZIP
-        foreach ($filesToAdd as &$file) {
-            if ($file == '.' || $file == '..')
-                continue;
-
-            $file = 'publish' . DIRECTORY_SEPARATOR . $file;
-
-            if (is_dir($file))
-                addFolderToZip($zip, $file);
-            else {
-                if (file_exists($file))
-                    $zip->addFile($file, basename($file));
-                else
-                    echo "El archivo $file no existe.\n";
+                    copy($srcFile, $dstFile);
+                }
             }
-        }
 
-        $zip->close();
+            try {
+                $zip = new ZipArchive();
 
-        $zipCreated = true;
+                if ($zip->open($zipFileName, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+                    $filesToAdd = scandir('publish');
 
-    }
-} else {
-    if ($restore) {
+                    // Agregar archivos al ZIP
+                    foreach ($filesToAdd as &$file) {
+                        if ($file == '.' || $file == '..')
+                            continue;
+
+                        $file = 'publish' . DIRECTORY_SEPARATOR . $file;
+
+                        if (is_dir($file))
+                            addFolderToZip($zip, $file);
+                        else {
+                            if (file_exists($file))
+                                $zip->addFile($file, basename($file));
+                        }
+                    }
+
+                    @$zip->close();
+
+                    $_SESSION['message'] = "Archivo <strong>{$zipFileName}</strong> creado<br>exitosamente.";
+                }
+            } catch (Exception $e) {
+                $_SESSION['error'] = "No ha sido posible crear el archivo <strong>{$zipFileName}</strong>";//$e->getMessage();
+            }
+        } else
+            $_SESSION['error'] = "No hay archivos con modificaciones registrados.<br>El archivo <strong>{$zipFileName}</strong><br>no fue creado.";
+
+        header("Location: index.php");
+        exit();
+
+    case 'restore':
         delTree('publish');
         //delTree(ROOT_PATH);
         copyRecursive(SOURCE_ROOT_PATH);
-    } else {
+
+        header("Location: index.php");
+        exit();
+
+    case 'detect':
+        $changedFiles = [];
+
         processDir(ROOT_PATH, true);
 
         if (!empty($force_include_dirs)) {
@@ -419,16 +428,13 @@ if ($createZip) {
                 processDir(trim(ROOT_PATH, '\\/') . DIRECTORY_SEPARATOR . trim($dir, '\\/'), false);
             }
         }
-    }
-}
 
-if (!empty($argv) && count($argv) > 1) {
-    if ($zipCreated)
-        echo "Archivo ZIP creado exitosamente: $zipFileName\n";
-    else
-        echo "No se pudo crear el archivo ZIP.\n";
+        updateConfig();
 
-    return;
+        sleep(3); //Dar tiempo a que cierre bien el archivo de configuración
+
+        header("Location: index.php");
+        exit();
 }
 ?>
 <!DOCTYPE html>
@@ -444,33 +450,41 @@ if (!empty($argv) && count($argv) > 1) {
     <link href="files/styles.css" rel="stylesheet"/>
 </head>
 <body>
-<div style="margin-bottom: 20px">
+<div id="forms" style="margin-bottom: 20px">
     <form method="get" action="index.php">
-        <button class="btn btn-default" type="submit">Actualizar</button>
+        <button class="btn btn-default" name="action" value="detect" type="submit">Detectar cambios</button>
     </form>
     <form method="get" action="index.php">
-        <input type="hidden" name="action" value="create_zip"/>
-        <button class="btn btn-default" type="submit">Crear <strong><?php echo basename($zipFileName); ?></strong>
+        <button class="btn btn-default" name="action" value="create_zip" type="submit">
+            Crear <strong><?php echo basename($zipFileName); ?></strong>
         </button>
     </form>
-    <form method="get" action="index.php" id="form_restore">
-        <input type="hidden" name="action" value="restore"/>
-        <button class="btn btn-default" type="submit">Restaurar copia de OpenCart</button>
+    <form method="get" action="index.php" id="form_restore" class="pull-right" style="margin-right: 5px">
+        <button class="btn btn-secondary" name="action" value="restore" type="submit">Restaurar copia de OpenCart</button>
     </form>
 </div>
 
 <div class="wrapper">
     <div id="files">
         <?php
-        if ($createZip) {
-            if ($zipCreated)
-                echo "
+        if (!empty($_SESSION['message'])) {
+            echo "
             <div class=\"alert alert-success alert-dismissible\" role=\"alert\">
               <button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\"Close\"><span aria-hidden=\"true\">&times;</span></button>
-              Archivo <strong>{$zipFileName}</strong> creado<br>exitosamente.
+              {$_SESSION['message']}
             </div>";
-            else
-                echo '<div class="success">No se pudo crear el archivo ZIP.</div>';
+
+            unset($_SESSION['message']);
+        }
+
+        if (!empty($_SESSION['error'])) {
+            echo "
+            <div class=\"alert alert-danger alert-dismissible\" role=\"alert\">
+              <button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\"Close\"><span aria-hidden=\"true\">&times;</span></button>
+              {$_SESSION['error']}
+            </div>";
+
+            unset($_SESSION['error']);
         }
 
         function echoFiles($files, $isUpload = false)
@@ -498,16 +512,21 @@ if (!empty($argv) && count($argv) > 1) {
             echo '</ul>';
         }
 
+        $hasChanges = false;
         if (!empty($changedFiles)) {
             echo '<h4><strong>Archivos con cambios</strong></h4>';
             echoFiles($changedFiles);
-        } else
-            echo '<h4><strong>No hay cambios.</strong></h4>';
+            $hasChanges = true;
+        }
 
         if (!empty($upload)) {
             echo '<h4><strong>Archivos en upload</strong></h4>';
             echoFiles($upload, true);
+            $hasChanges = true;
         }
+
+        if (!$hasChanges)
+            echo '<h3 style="margin: 0 0 10px 0">No hay cambios registrados.</h3>Presione <strong>Detectar cambios</strong> siempre que incluya cambios<br>en nuevos archivos.';
         ?>
     </div>
     <div id="content_wrapper">

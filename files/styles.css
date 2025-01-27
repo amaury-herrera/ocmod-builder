@@ -35,6 +35,19 @@ form {
     display: inline;
 }
 
+#forms {
+    display: flex;
+    flex-direction: row;
+    column-gap: 5px;
+    flex-basis: 100%;
+}
+
+#forms form:last-child {
+    display: flex;
+    justify-content: flex-end;
+    flex-grow: 1;
+}
+
 li {
     text-align: left;
     color: #000;
