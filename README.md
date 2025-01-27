@@ -40,8 +40,8 @@ Open the file you need to modify and insert the template where the change needs 
 Inside the &lt;add&gt; tag you can use the following "attributes" to perform some actions before inserting the code into the XML (install.xml). Note that they must be written in uppercase.
 
 - TRIM, LTRIM and RTRIM apply the same PHP function (trim, ltrim and rtrim) to the content of the <add> tag.
-- APPEND="xxx" Adds the value in quotes to the end of the content of &lt;add&gt;. For example: APPEND="$1", if you use regex="true" and you want to add &dollar;1 at the end inside PHP code (the IDE would show this as an error).
-  -PREPEND="xxx" Does the same thing as append, but adds it to the beginning of the contents of &lt;add&gt;.
+- APPEND="xxx" Adds the value in quotes to the end of the content of &lt;add&gt;. For example: APPEND="$1", if you use regex="true" and you want to add &dollar;1 at the end inside PHP code (the IDE would show this as an error). 
+- PREPEND="xxx" Does the same thing as append, but adds it to the beginning of the contents of &lt;add&gt;.
 
 Click the **Detect Changes** button whenever you make changes to files not recorded in the **&dollar;changedFiles** variable or whenever you add new files not recorded in the **&dollar;upload** variable (both variables appear in the **ocmod-builder.cfg.php** file). This action will update the variables mentioned above.
 
