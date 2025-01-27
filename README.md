@@ -13,7 +13,7 @@ The main advantage of **OCMod builder** is that it allows you to write changes d
 - Start your IDE and open as a project the folder configured in the ROOT_PATH constant, which contains the copy of OpenCart you will be working with.
 - Add the following templates to your IDE (in PhpStorm you will need to open $Settings/Editor/Live templates$ to add them and use Ctrl + J to insert them).
 
-  **PHP** y **Javascript**
+  **PHP** and **Javascript**
 
       //<OCMOD>
       //<search trim="false">$SEARCH$</search>
