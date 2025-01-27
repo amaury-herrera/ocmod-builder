@@ -46,7 +46,9 @@ Inside the &lt;add&gt; tag you can use the following "attributes" to perform som
 - APPEND="xxx" Adds the value in quotes to the end of the content of &lt;add&gt;. For example: APPEND="$1", if you use regex="true" and you want to add &dollar;1 at the end inside PHP code (the IDE would show this as an error).
   -PREPEND="xxx" Does the same thing as append, but adds it to the beginning of the contents of &lt;add&gt;.
 
-You can add new files inside the folders of your OpenCart copy, **OCMod builder** will detect them and include them in the **upload** folder when generating the .zip and will update the $&dollar;upload$ variable in the **ocmod-builder.cfg.php** file with the list of new files found. The same will happen if you delete any of these files.
+Click the **Detect Changes** button whenever you make changes to files not recorded in the $&dollar;changedFiles$ variable or whenever you add new files not recorded in the $&dollar;upload$ variable (both variables appear in the **ocmod-builder.cfg.php** file). This action will update the variables mentioned above.
+
+Click the **Create xxxxxx.ocmod.zip** button to generate the zip file containing the changes. This file will be created with the files recorded in the variables mentioned above, so if there are any unrecorded files you should use the **Detect Changes** button before performing this action.
 
 
 #### Example:
@@ -100,9 +102,11 @@ Dentro de la etiqueta &lt;add&gt; puede utilizar los siguientes "atributos" para
 
 - TRIM, LTRIM y RTRIM aplican la misma función de PHP (trim, ltrim y rtrim) al contenido de la etiqueta <add>.
 - APPEND="xxx" Agrega el valor entre comillas al final del contenido de &lt;add&gt;. Por ejemplo: APPEND="$1", si se usa regex="true" y se desea añadir &dollar;1 al final dentro de código PHP (el IDE lo mostraría como error).
-  -PREPEND="xxx" Hace lo mismo que append, pero lo agrega al comienzo del contenido de &lt;add&gt;.
+- PREPEND="xxx" Hace lo mismo que append, pero lo agrega al comienzo del contenido de &lt;add&gt;.
 
-Puede agregar nuevos archivos dentro de las carpetas de la copia de OpenCart, **OCMod builder** los detectará y los incluirá en la carpeta **upload** al generar el .zip y actualizará la variable $&dollar;upload$ en el archivo **ocmod-builder.cfg.php** con la lista de nuevos archivos encontrados. Lo mismo ocurrirá si elimina alguno de estos archivos.
+Haga clic en el botón **Detectar cambios** siempre que introduzca cambios en archivos no registrados en la variable $&dollar;changedFiles$ o siempre que agregue archivos nuevos no registrados en la variable $&dollar;upload$ (ambas variables aparecen en el archivo **ocmod-builder.cfg.php**). Con esta acción se actualizarán las variables antes mencionadas.
+
+Haga clic en el botón **Crear xxxxxx.ocmod.zip** para generar el archivo comprimido que contiene los cambios. Este archivo será creado con los archivos registrados en las variables mencionadas arriba, por lo que si hay archivos no registrados deberá utilizar el botón **Detectar cambios** antes de ejecutar esta acción.
 
 #### Ejemplo:
 
