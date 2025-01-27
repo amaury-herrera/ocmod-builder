@@ -35,7 +35,7 @@ The main advantage of **OCMod builder** is that it allows you to write changes d
 
 ### Writing code
 
-Open the file you need to modify and insert the template where the change needs to be made. Make the relevant changes in the &lt;search&gt; and &lt;add&gt; tags and write inside the latter the code you need to add.
+In your preferred IDE, open the file you need to modify and insert the template where the change needs to be made. Make the relevant changes in the &lt;search&gt; and &lt;add&gt; tags and write inside the latter the code you need to add.
 
 Inside the &lt;add&gt; tag you can use the following "attributes" to perform some actions before inserting the code into the XML (install.xml). Note that they must be written in uppercase.
 
@@ -91,7 +91,7 @@ La principal ventaja de **OCMod builder** es la de permitir escribir los cambios
 
 ### Escribiendo código
 
-Abra el archivo que debe modificar e inserte la plantilla en el lugar donde debe hacerse el cambio. Haga los cambios pertinentes en las etiquetas &lt;search&gt; y &lt;add&gt; y escriba dentro de esta última el código que debe añadir.
+En su IDE preferido, abra el archivo que debe modificar e inserte la plantilla en el lugar donde debe hacerse el cambio. Haga los cambios pertinentes en las etiquetas &lt;search&gt; y &lt;add&gt; y escriba dentro de esta última el código que debe añadir.
 
 Dentro de la etiqueta &lt;add&gt; puede utilizar los siguientes "atributos" para realizar algunas acciones antes de insertar el código en el XML (install.xml). Note que deben escribirse en mayúsculas.
 
