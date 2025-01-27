@@ -15,24 +15,21 @@ The main advantage of **OCMod builder** is that it allows you to write changes d
 
   **PHP** y **Javascript**
 
-  //&lt;OCMOD&gt;
-  <br>
-  //&lt;search trim="false"&gt;&dollar;SEARCH&dollar;&lt;/search&gt;
-  <br>
-  //&lt;add position="&dollar;POSITION&dollar;" TRIM&gt;
-  <br>
-  &dollar;ADD&dollar;  
-  //&lt;/add&gt;
-  <br>
-  //&lt;/OCMOD&gt;
+      //<OCMOD>
+      //<search trim="false">$SEARCH$</search>
+      //<add position="$POSITION$" TRIM>
+      $ADD$  
+      //</add>
+      //</OCMOD>
 
   **Twig**
-  {#&lt;OCMOD&gt;#}<br>
-  {#&lt;search>&dollar;SEARCH&dollar;&lt;/search&gt;#}<br>
-  {#&lt;add position="&dollar;before&dollar;" TRIM&gt;#}<br>
-  &dollar;CODE&dollar;<br>
-  {#&lt;/add&gt;#}<br>
-  {#&lt;/OCMOD&gt;#}
+
+      {#<OCMOD>#}
+      {#<search>$SEARCH$</search>#}
+      {#<add position="$before$" TRIM>#}
+      $CODE$
+      {#</add>#}
+      {#</OCMOD>#}
 
   Values between &dollar; are used in PhpStorm to set the texts you can edit when inserting the template. You may need to adjust the template if you use another IDE.
 
@@ -73,24 +70,22 @@ La principal ventaja de **OCMod builder** es la de permitir escribir los cambios
 - Agregue las siguientes plantillas en su IDE (en PhpStorm deberá abrir $Settings/Editor/Live templates$ para añadirlas y utilizar las teclas Ctrl + J para insertarlas).
 
   **PHP** y **Javascript**
-  //&lt;OCMOD&gt;
-  <br>
-  //&lt;search trim="false"&gt;&dollar;SEARCH&dollar;&lt;/search&gt;
-  <br>
-  //&lt;add position="&dollar;POSITION&dollar;" TRIM&gt;
-  <br>
-  &dollar;ADD&dollar;  
-  //&lt;/add&gt;
-  <br>
-  //&lt;/OCMOD&gt;
+
+      //<OCMOD>
+      //<search trim="false">$SEARCH$</search>
+      //<add position="$POSITION$" TRIM>
+      $ADD$  
+      //</add>
+      //</OCMOD>
 
   **Twig**
-  {#&lt;OCMOD&gt;#}<br>
-  {#&lt;search>&dollar;SEARCH&dollar;&lt;/search&gt;#}<br>
-  {#&lt;add position="&dollar;before&dollar;" TRIM&gt;#}<br>
-  &dollar;CODE&dollar;<br>
-  {#&lt;/add&gt;#}<br>
-  {#&lt;/OCMOD&gt;#}
+
+      {#<OCMOD>#}
+      {#<search>$SEARCH$</search>#}
+      {#<add position="$before$" TRIM>#}
+      $CODE$
+      {#</add>#}
+      {#</OCMOD>#}
 
   Los valores entre &dollar; se utilizan en PhpStorm para establecer los textos que puede editar al insertar la plantilla. Es posible que deba ajustar la plantilla si utiliza otro IDE.
 
