@@ -1,20 +1,14 @@
 <?php
 define("ROOT_PATH", "./opencart");			//Raíz de la carpeta de trabajo que contiene una copia de OpenCart
 define("SOURCE_ROOT_PATH", "../opencart");	//Raíz de la carpeta real de OpenCart
+define("LANGUAGE", "es");                   //Idioma de los textos
 
 //Nombre del archivo zip. Se agrega .ocmod.zip al crear el archivo si no termina así
 $zipFileName = 'coupon_gift_products';
 
 //Archivos con cambios detectados
 $changedFiles = [
-    "admin/controller/marketing/coupon.php",
-    "admin/language/en-gb/marketing/coupon.php",
-    "admin/model/catalog/product.php",
-    "admin/model/marketing/coupon.php",
-    "admin/view/template/marketing/coupon_form.twig",
-    "catalog/controller/extension/total/coupon.php",
-    "catalog/model/extension/total/coupon.php",
-    "system/library/cart/cart.php"
+    "admin/controller/marketing/coupon.php"
 ];
 
 //Archivos nuevos a subir (carpeta upload). Se agregan/eliminan automáticamente cuando se agregan/eliminan archivos

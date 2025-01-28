@@ -9,6 +9,26 @@ session_start();
 include_once('ocmod-builder.cfg.php');
 include_once(SOURCE_ROOT_PATH . '/config.php');
 
+$lang = LANGUAGE;
+if (!file_exists($langFile = 'lang/' . LANGUAGE . '.php')) {
+    echo '<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>OCMOD Builder</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    Language file not found / Archivo de idioma no encontrado.<br>
+    (' . LANGUAGE . '.php)
+</body>
+</html>';
+    exit();
+}
+
+include_once($langFile);
+
+extract($lang, EXTR_OVERWRITE | EXTR_PREFIX_ALL, 'lang_');
+
 define("TAG_SEARCH_BEGIN", "<search");
 define("TAG_SEARCH_END", "</search>");
 define("TAG_ADD_BEGIN", "<add");
@@ -19,34 +39,73 @@ $action = '';
 $commandLine = empty($_SERVER['HTTP_HOST']);
 
 if (!empty($_POST)) {
-    if (!(empty($_POST['get_diff']) && empty($_POST['get_ocmod']))) {
+    if (!empty($_POST['action'])) {
         // Cadenas de texto a comparar
-        $sourceText = file_get_contents(SOURCE_ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file']);
-        $modifiedText = !empty($_POST['get_diff'])
-            ? file_get_contents(DIR_STORAGE . 'modification' . DIRECTORY_SEPARATOR . $_POST['file'])
-            : file_get_contents(ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file']);
+        $modFileExists = true;
 
-        $differ = new Differ();
+        $srcFilename = $_POST['action'] == 'get_upload'
+            ? ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file']
+            : SOURCE_ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file'];
 
-        // Obtener las diferencias
-        $git_diff = $differ->diffToArray($sourceText, $modifiedText);
+        if (file_exists($srcFilename)) {
+            $sourceText = file_get_contents($srcFilename);
 
-        $lines = [];
-        foreach ($git_diff as $line) {
-            if ($line[1] == 1)
-                $lines[] = '[+]' . rtrim($line[0]);
-            elseif ($line[1] == 2)
-                $lines[] = '[-]' . rtrim($line[0]);
-            else
-                $lines[] = rtrim($line[0]);
+            switch ($_POST['action']) {
+                case 'get_orig':
+                    $modFilename = $srcFilename;
+                    break;
+
+                case 'get_ocmod':
+                case 'get_upload':
+                    $modFilename = ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file'];
+                    break;
+
+                case 'get_diff':
+                    $modFilename = DIR_STORAGE . 'modification' . DIRECTORY_SEPARATOR . $_POST['file'];
+                    break;
+
+                default:
+                    header('Content-Type: application/json');
+                    echo json_encode(['error' => $lang__unknown_action]);
+                    exit();
+            }
+
+            if ($modFileExists = file_exists($modFilename))
+                $modifiedText = file_get_contents($modFilename);
+
+            $differ = new Differ();
+
+            // Obtener las diferencias
+            $git_diff = $differ->diffToArray($sourceText, $modifiedText);
+
+            $lines = [];
+            foreach ($git_diff as $line) {
+                if ($line[1] == 1)
+                    $lines[] = '[+]' . rtrim($line[0]);
+                elseif ($line[1] == 2)
+                    $lines[] = '[-]' . rtrim($line[0]);
+                else
+                    $lines[] = rtrim($line[0]);
+            }
         }
 
+        $errors = [];
+        if (!file_exists($srcFilename))
+            $errors[] = sprintf($lang__file_not_found, $srcFilename);
+        if (!$modFileExists)
+            $errors[] = sprintf($lang__file_not_found, $modFilename);
+
         header('Content-Type: application/json');
-        echo json_encode(['content' => $lines]);
+
+        if (empty($errors))
+            echo json_encode(['content' => $lines]);
+        else
+            echo json_encode(['error' => implode('<br>', $errors)]);
+
         return;
     }
 
-    if (!(empty($_POST['get_orig']))) {
+    /*if (!(empty($_POST['get_orig']))) {
         header('Content-Type: application/json');
         echo json_encode(['content' => file_get_contents(SOURCE_ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file'])]);
         return;
@@ -56,7 +115,7 @@ if (!empty($_POST)) {
         header('Content-Type: application/json');
         echo json_encode(['content' => file_get_contents(ROOT_PATH . DIRECTORY_SEPARATOR . $_POST['file'])]);
         return;
-    }
+    }*/
 
     return;
 } else {
@@ -399,13 +458,13 @@ switch ($action) {
 
                     @$zip->close();
 
-                    $_SESSION['message'] = "Archivo <strong>{$zipFileName}</strong> creado<br>exitosamente.";
+                    $_SESSION['message'] = sprintf($lang__zip_created, $zipFileName);
                 }
             } catch (Exception $e) {
-                $_SESSION['error'] = "No ha sido posible crear el archivo <strong>{$zipFileName}</strong>";//$e->getMessage();
+                $_SESSION['error'] = sprintf($lang__zip_error, $zipFileName);//$e->getMessage();
             }
         } else
-            $_SESSION['error'] = "No hay archivos con modificaciones registrados.<br>El archivo <strong>{$zipFileName}</strong><br>no fue creado.";
+            $_SESSION['error'] = sprintf($lang__nothing_to_do, $zipFileName);
 
         header("Location: index.php");
         exit();
@@ -452,21 +511,24 @@ switch ($action) {
 <body>
 <div id="forms" style="margin-bottom: 20px">
     <form method="get" action="index.php">
-        <button class="btn btn-default" name="action" value="detect" type="submit">Detectar cambios</button>
+        <button class="btn btn-default" name="action" value="detect" type="submit">
+            <?php echo $lang__detect; ?>
+        </button>
     </form>
     <form method="get" action="index.php">
         <button class="btn btn-default" name="action" value="create_zip" type="submit">
-            Crear <strong><?php echo basename($zipFileName); ?></strong>
+            <?php echo sprintf($lang__create_zip, basename($zipFileName)); ?>
         </button>
     </form>
     <form method="get" action="index.php" id="form_restore" class="pull-right" style="margin-right: 5px">
-        <button class="btn btn-secondary" name="action" value="restore" type="submit">Restaurar copia de OpenCart</button>
+        <button class="btn btn-secondary" name="action" value="restore" type="submit">
+            <?php echo $lang__restore; ?>
+        </button>
     </form>
 </div>
 
 <div class="wrapper">
-    <div id="files">
-        <?php
+    <div id="files"><?php
         if (!empty($_SESSION['message'])) {
             echo "
             <div class=\"alert alert-success alert-dismissible\" role=\"alert\">
@@ -489,45 +551,54 @@ switch ($action) {
 
         function echoFiles($files, $isUpload = false)
         {
-            echo '<ul class="list-group">';
+            global $lang__see_file, $lang__not_copied, $lang__original, $lang__modified, $lang__not_modified;
+
+            echo "\r\n        <ul class=\"list-group\">\r\n";
             foreach ($files as &$file) {
-                echo "<li class='list-group-item'><span>{$file}</span>";
+                echo "            <li class='list-group-item'><span>{$file}</span>\r\n";
 
                 $storage_file = DIR_STORAGE . 'modification' . DIRECTORY_SEPARATOR . $file;
 
                 if ($isUpload) {
-                    echo "<br><a class='get_upload' href=\"{$file}\">Ver archivo</a>";
+                    echo "                <br><a class='get_upload' href=\"{$file}\">{$lang__see_file}</a>";
                     if (!file_exists($storage_file))
-                        echo '<span class="a">&nbsp;&nbsp;&nbsp;&nbsp;No copiado</span>';
+                        echo "<span class=\"a\">&nbsp;&nbsp;&nbsp;&nbsp;{$lang__not_copied}</span>";
                 } else {
-                    echo "<br><a class='get_orig' href=\"{$file}\">Original</a>";
+                    echo "                <br><a class='get_orig' href=\"{$file}\">{$lang__original}</a>";
                     echo "<a class='get_ocmod' href=\"{$file}\">OCMOD</a>";
 
                     echo file_exists($storage_file)
-                        ? "<a class='get_diff' href=\"{$file}\">Modificado</a>"
-                        : '<small class="a">&nbsp;&nbsp;&nbsp;&nbsp;No modificado</small>';
+                        ? "<a class='get_diff' href=\"{$file}\">{$lang__modified}</a>"
+                        : "<small class=\"a\">&nbsp;&nbsp;&nbsp;&nbsp;{$lang__not_modified}</small>";
                 }
-                echo "</li>";
+                echo "\r\n            </li>\r\n";
             }
-            echo '</ul>';
+            echo "        </ul>\r\n";
         }
 
         $hasChanges = false;
         if (!empty($changedFiles)) {
-            echo '<h4><strong>Archivos con cambios</strong></h4>';
+            echo "\r\n        <h4><strong>{$lang__files_w_changes}</strong></h4>";
             echoFiles($changedFiles);
             $hasChanges = true;
         }
 
         if (!empty($upload)) {
-            echo '<h4><strong>Archivos en upload</strong></h4>';
+            echo "\r\n        <h4><strong>{$lang__upload_files}</strong></h4>";
             echoFiles($upload, true);
             $hasChanges = true;
         }
 
         if (!$hasChanges)
-            echo '<h3 style="margin: 0 0 10px 0">No hay cambios registrados.</h3>Presione <strong>Detectar cambios</strong> siempre que incluya cambios<br>en nuevos archivos.';
+            echo "<h3 style=\"margin: 0 0 10px 0\">{$lang__no_changes}</h3>{$lang__press_detect}";
         ?>
+
+        <div id="alert" class="alert alert-danger alert-dismissible" style="display: none; margin-top: 20px;">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <div id="alertText"></div>
+        </div>
     </div>
     <div id="content_wrapper">
         <div id="line_numbers"></div>
@@ -536,7 +607,7 @@ switch ($action) {
 </div>
 
 <div class="text-right">
-    <span>Puede usar las teclas: &uarr;, &darr;, Home y End para moverse por los cambios</span>
+    <span><?php echo $lang__keys_explanation; ?></span>
     <div class="btn-group" style="margin: 5px">
         <button class="btn btn-default" type="button" id="btnGoFirst">&lt;&lt;</button>
         <button class="btn btn-default" type="button" id="btnGoPrev">&lt;</button>
@@ -546,179 +617,9 @@ switch ($action) {
 </div>
 
 <script type="application/javascript">
-    $('document')
-        .ready(function (e) {
-            $('#form_restore').submit(function (e) {
-                if (!confirm('Esta acción eliminará todos los cambios hechos en la copia de trabajo de OpenCart.\n\n¿Está seguro que desea restaurar la copia de OpenCart?'))
-                    e.preventDefault();
-            });
-
-            let selected = null,
-                selectedLink = null,
-                changes = null,
-                currentChange = null,
-                fc = $('#file_content'),
-                cw = $('#content_wrapper'),
-                buttons = $('button[id^="btnGo"]');
-
-            $('.get_diff,.get_ocmod,.get_orig,.get_upload').click(function (e) {
-                e.preventDefault();
-
-                let file = $(this).attr('href');
-                if (!file)
-                    return;
-
-                let data = {file: file};
-                data[$(this).attr('class').replace('active', '').trim()] = true;
-
-                if (selected)
-                    selected.removeClass('active');
-                if (selectedLink)
-                    selectedLink.removeClass('active');
-
-                selected = $(this).parent().addClass('active');
-                selectedLink = $(this).addClass('active');
-
-                $.post('index.php', data, function (d) {
-                    if ('content' in d) {
-                        let ext = file.substring(file.lastIndexOf('.')).toLowerCase();
-                        let lang = ext == '.php' ? 'php' : (ext == '.twig' ? 'twig' : (ext == '.js' ? 'javascript' : ''));
-                        let lines = d.content;
-                        let tempHTML = $('<div>');
-                        let numsHTML = $('<div>');
-                        let lineNumber = 1;
-
-                        for (let i = 0; i < lines.length; i++) {
-                            let line = lines[i];
-
-                            let actionRe = new RegExp("^\\[[+\\-]\\]");
-                            let action = line.match(actionRe);
-                            let actionClass = ' class="normal" tag="normal"';
-                            if (action) {
-                                line = line.substring(3);
-                                actionClass = action[0] == '[+]' ? ' class="added" tag="added"' : ' class="removed" tag="removed"';
-                            }
-
-                            let spcRe = new RegExp("^[\t ]+");
-                            let spc = line.match(spcRe);
-                            let spaces = (spc ? spc[0] : '').replaceAll('\t', '&nbsp;&nbsp;&nbsp;&nbsp;').replaceAll(' ', '&nbsp;');
-                            if (spc)
-                                line = line.substring(spc[0].length);
-
-                            let div = $('<div>').text(line);
-                            let html = lang ? Prism.highlight(line, Prism.languages[lang], lang) : line;
-                            if (!html)
-                                html = '&nbsp;';
-
-                            tempHTML.append('<code' + actionClass + '>' + spaces + html + '</code>');
-                            numsHTML.append('<code>' + lineNumber + '&nbsp;</code>');
-
-                            lineNumber++;
-                        }
-
-                        fc.html(tempHTML);
-                        $('#line_numbers').html(numsHTML);
-
-                        currentChange = null;
-                        changes = $('code.normal + code:not(.normal),' +
-                            'code.added + code:not(.added):not(.normal),' +
-                            'code.removed + code:not(.removed):not(.normal)', fc)
-                            .toArray();
-
-                        enableNavButtons();
-                    }
-                });
-            });
-
-            function enableNavButtons() {
-                if (!changes || changes.length == 0) {
-                    buttons.attr('disabled', 'disabled');
-                    return;
-                }
-
-                if (!currentChange) {
-                    buttons.removeAttr('disabled');
-                    return;
-                }
-
-                let index = changes.indexOf(currentChange);
-
-                // buttons[0].toggleAttribute('disabled', index == 0);
-                // buttons[1].toggleAttribute('disabled', index == 0);
-                // buttons[2].toggleAttribute('disabled', index >= changes.length - 1);
-                // buttons[3].toggleAttribute('disabled', index >= changes.length - 1);
-            }
-
-            function highlightBlock(addClass) {
-                let cc = $(currentChange);
-                let tag = cc.attr('tag');
-                let sel = cc.nextUntil(':not([tag="' + tag + '"]').add(cc);
-
-                sel[addClass ? 'addClass' : 'removeClass']('selected');
-            }
-
-            buttons.click(function (e) {
-                if (!changes || changes.length == 0)
-                    return;
-
-                let id = $(this).attr('id');
-                let index = currentChange ? changes.indexOf(currentChange) : 0;
-
-                switch (id.substring(5)) {
-                    case 'First':
-                        index = 0;
-                        break;
-                    case 'Prev':
-                        if (--index < 0)
-                            index = changes.length - 1;
-                        break;
-                    case 'Next':
-                        if (!currentChange || ++index >= changes.length)
-                            index = 0;
-                        break;
-                    case 'Last':
-                        index = changes.length - 1;
-                        break;
-                }
-
-                if (currentChange)
-                    highlightBlock(false);
-
-                currentChange = changes[index];
-
-                let toGo = $(currentChange)[0].offsetTop - 60,
-                    scrTop = cw.scrollTop(),
-                    height = cw.height();
-
-                if (toGo < scrTop || toGo > scrTop + height - 60)
-                    cw.scrollTop(toGo - height / 2);
-
-                highlightBlock(true);
-                enableNavButtons();
-            });
-
-            enableNavButtons();
-        });
-
-    $(window).keydown(function (e) {
-        if (!e.ctrlKey && !e.altKey && !e.shiftKey) {
-            switch (e.keyCode) {
-                case 35:
-                    $('#btnGoLast').click();
-                    break;
-                case 36:
-                    $('#btnGoFirst').click();
-                    break;
-                case 38:
-                    $('#btnGoPrev').click();
-                    break;
-                case 40:
-                    $('#btnGoNext').click();
-                    break;
-            }
-        }
-    });
+    var lang_confirm_restore = '<?php echo $lang__confirm_restore; ?>';
 </script>
+<script type="application/javascript" src="files/ocmod-builder.js"></script>
 <script src="files/prism.js"></script>
 
 </body>

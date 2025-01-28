@@ -1,0 +1,22 @@
+<?php
+$lang = [
+    'zip_created' => 'File <strong>%s</strong> created successfully.',
+    'zip_error' => 'Failed to create file <strong>%s</strong>',
+    'zip_nothing_to_do' => 'There are no modified files registered.<br>The file <strong>%s</strong><br>was not created.',
+    'file_not_found' => 'The file: <strong>%s</strong> don\'t exists.',
+    'unknown_action' => 'Invalid action.',
+    'detect' => 'Detect changes',
+    'create_zip' => 'Create <strong>%s</strong>',
+    'restore' => 'Restore OpenCart copy',
+    'see_file' => 'View file',
+    'not_copied' => 'Not copied',
+    'original' => 'Original',
+    'modified' => 'Modified',
+    'not_modified' => 'Not modified',
+    'files_w_changes' => 'Files with changes',
+    'upload_files' => 'Files to be uploaded',
+    'no_changes' => 'There are no changes registered.',
+    'press_detect' => 'Press <strong>Detect changes</strong> whenever you include changes<br>in new files.',
+    'keys_explanation' => 'You can use the keys: &uarr;, &darr;, Home and End to move through the changes.',
+    'confirm_restore' => 'This action will remove all changes made to the OpenCart working copy.\n\nAre you sure you want to restore the OpenCart working copy?',
+];
