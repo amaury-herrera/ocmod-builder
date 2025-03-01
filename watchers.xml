@@ -1,0 +1,22 @@
+<TaskOptions>
+  <TaskOptions>
+    <option name="arguments" value="$ContentRoot$\watcher_stubs.php" />
+    <option name="checkSyntaxErrors" value="true" />
+    <option name="description" />
+    <option name="exitCodeBehavior" value="ERROR" />
+    <option name="fileExtension" value="php" />
+    <option name="immediateSync" value="true" />
+    <option name="name" value="Stubs" />
+    <option name="output" value="D:\wamp3\www\ocm-builder\private" />
+    <option name="outputFilters">
+      <array />
+    </option>
+    <option name="outputFromStdout" value="false" />
+    <option name="program" value="$PROJECT_DIR$/../../bin/php/php7.4.0/php" />
+    <option name="runOnExternalChanges" value="true" />
+    <option name="scopeName" value="ForStubs" />
+    <option name="trackOnlyRoot" value="false" />
+    <option name="workingDir" value="$ContentRoot$" />
+    <envs />
+  </TaskOptions>
+</TaskOptions>

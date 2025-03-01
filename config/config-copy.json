@@ -1,0 +1,19 @@
+{
+    "projects": {
+        "0cbc6611f5540bd0809a388dc95a615b": {
+            "projectName": "Productos de regalo",
+            "root_path": "D:\\wamp3\\www\\opencart",
+            "URL": "http:\/\/localhost\/opencart",
+            "zipFilename": "coupon_gift_products",
+            "name": "Gift Products",
+            "code": "gift_products",
+            "version": "1.0",
+            "author": "Amaury Herrera Brito",
+            "link": "",
+            "updateCache": false,
+            "lastPath": "\/admin\/model\/catalog",
+            "lastPathOpened": 0
+        }
+    },
+    "currentProject": "0cbc6611f5540bd0809a388dc95a615b"
+}

@@ -1,4 +1,2 @@
-/opencart/
-/publish/
-.idea
-*.zip
+/test.php
+/projects/*.*
