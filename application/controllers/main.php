@@ -1,5 +1,6 @@
 <?php
 
+//print_r( $_SERVER);
 class Main {
     public function index() {
         MODEL::Cache()->recreateIfNeeded();
@@ -86,6 +87,76 @@ class Main {
         }
 
         echo json_encode(['error' => 'El proyecto solicitado no existe.']);
+    }
+
+    /**
+     * Crea un nuevo proyecto y lo establece como activo si es el primero
+     * @return void
+     */
+    public function ajax_createProject() {
+        $key = md5(strtolower(Post::code()));
+
+        $cfg = App::Config();
+
+        $projects = $cfg->projects;
+        if (!$projects) {
+            $projects = [];
+            $cfg->currentProject = $key;
+        }
+
+        if (array_key_exists($key, $projects)) {
+            echo json_encode(['error' => 'Ya existe un proyecto con el código: ' . Post::code() . '.']);
+            return;
+        }
+
+        $projects[$key] = [
+            'projectName' => Post::projectName(),
+            'root_path' => Post::root_path(),
+            'URL' => Post::url(),
+            'zipFilename' => Post::zipFilename(),
+            'name' => Post::name(),
+            'code' => Post::code(),
+            'version' => Post::version(),
+            'author' => Post::author(),
+            'link' => Post::link(),
+            'updateCache' => true,
+            'lastPath' => '/admin',
+            'lastPathOpened' => 0,
+        ];
+
+        $cfg->projects = $projects;
+
+        echo json_encode(['ok' => $cfg->update()]);
+    }
+
+    public function ajax_checkRoot() {
+        $path = rtrim(Post::path(), '\\/');
+
+        echo json_encode(['ok' => is_dir($path) && is_dir($path . '/admin') && is_dir($path . '/catalog') && is_readable($path)]);
+    }
+
+    function ajax_checkURL() {
+        $curl = curl_init();
+
+        $url = trim(Post::url(), '/') . '/admin';
+
+        if (substr($url, 0, 5) == 'https')
+            curl_setopt($curl, CURLOPT_PORT, 443);
+
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        curl_setopt($curl, CURLINFO_HEADER_OUT, true);
+        curl_setopt($curl, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_FORBID_REUSE, false);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+        curl_exec($curl);
+
+        $cinfo = curl_getinfo($curl);
+
+        echo json_encode(['ok' => floor($cinfo['http_code'] / 100) === 2 || $cinfo['http_code'] === 301]);
     }
 
     public function ajax_get_file() {

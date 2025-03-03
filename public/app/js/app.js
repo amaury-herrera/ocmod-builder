@@ -233,44 +233,6 @@ class ControllerSample extends Controller {\n\
             });
     }
 
-    t.newProject = function () {
-        const content = $('#newProject').clone().removeClass('d-none').attr('id', null);
-
-        showConfirm(content,
-            {
-                ok: function () {
-
-                }
-            },
-            btnOkCancel,
-            true,
-            true,
-            'Crear proyecto',
-            {
-                icon: '-',
-                size: 'lg'
-            });
-    }
-
-    t.updateProject = function () {
-        const content = $('#newProject').clone().removeClass('d-none').attr('id', null);
-
-        showConfirm(content,
-            {
-                ok: function () {
-
-                }
-            },
-            btnOkCancel,
-            true,
-            true,
-            'Actualizar proyecto',
-            {
-                icon: '-',
-                size: 'lg'
-            });
-    }
-
     t.recreatingCache = ko.observable(0);
 
     function doPost(uri, data, callback, options) {
@@ -350,7 +312,7 @@ class ControllerSample extends Controller {\n\
     t.Uploaded = ko.observable(false);
 
     t.projects = ko.observableArray(projects());
-    t.currentProject = ko.observable(t.projects()[iniData.projectIndex]);
+    t.currentProject = ko.observable(t.projects().length > 0 ? t.projects()[iniData.projectIndex] : null);
 
     t.fileList = ko.observableArray([]).extend({notify: 'always'});
     t.curPath = ko.observable('');
@@ -559,7 +521,7 @@ class ControllerSample extends Controller {\n\
 
         xhr && xhr.abort();
 
-        xhr = $.post('main/get_files', {path: path, opened: (isFirstLoad ? iniData.lastPathOpened : leaf.opened()) ? 1 : 0},
+        xhr = $.post('main/get_files', {path: path, opened: (isFirstLoad ? projectData().lastPathOpened : leaf.opened()) ? 1 : 0},
             function (d) {
                 xhr = null;
                 d.files.forEach(function (e) {
@@ -574,8 +536,10 @@ class ControllerSample extends Controller {\n\
         isFirstLoad = false;
     });
 
-    findLeave(iniData.lastPath, true);
-    t.activeLeaf().c().length && t.activeLeaf().opened(initData.lastPathOpened());
+    if (originalTree.length > 0) {
+        findLeave(projectData().lastPath, true);
+        t.activeLeaf().c().length && t.activeLeaf().opened(projectData().lastPathOpened);
+    }
 
     $('.card.editor').delegate('button[id^="btnGo"]', 'click', null,
         function (e) {
@@ -763,6 +727,143 @@ class ControllerSample extends Controller {\n\
 
             editorData.editor.session.addMarker(new ace.Range(marker.startRow, 0, marker.endRow, 0), clazz, "line", false);
         });
+    }
+
+    /**
+     * Crea un nuevo proyecto y lo activa si es el primero
+     */
+    t.newProject = function () {
+        const content = $('#newProject').clone().removeClass('d-none').attr('id', null);
+
+        const dlg = showConfirm(content,
+            {
+                ok: function (dlg) {
+                    const validator = new Validator($('form', dlg));
+
+                    validator.addRule('checkRoot',
+                        function (v) {
+                            const reqData = new FormData();
+                            reqData.append('path', v);
+
+                            async function get() {
+                                const resp = await fetch('main/checkRoot',
+                                    {
+                                        method: 'POST',
+                                        body: reqData,
+                                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                                    });
+
+                                if (resp.ok) {
+                                    const ret = await resp.json();
+                                    return ret.ok;
+                                }
+
+                                return true;
+                            }
+
+                            return get();
+                        }, 'La ruta no es válida');
+
+                    validator.addRule('checkURL',
+                        function (v) {
+                            const reqData = new FormData();
+                            reqData.append('url', v);
+
+                            async function get() {
+                                const resp = await fetch('main/checkURL',
+                                    {
+                                        method: 'POST',
+                                        body: reqData,
+                                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                                    });
+
+                                if (resp.ok) {
+                                    const ret = await resp.json();
+                                    return ret.ok;
+                                }
+
+                                return true;
+                            }
+
+                            return get();
+                        }, 'La URL de OpenCart no es válida');
+
+                    if (validator.validate()) {
+                        $('button', dlg).attr('disabled', 'disabled');
+
+                        function onFail() {
+                            $('button', dlg).attr('disabled', null);
+                            dlg.okFailed();
+                        }
+
+                        doPost('main/createProject', validator.getValues(),
+                            function (r) {
+                                if (r.ok) {
+                                    dlg.modal('hide');
+                                    if (isFirstProject || openAfterCreation.is(':checked'))
+                                        document.location.reload();
+                                } else {
+                                    sysMsgs.show(r.error, __MSG_ERROR);
+                                    onFail();
+                                }
+                            },
+                            {
+                                failFn: onFail
+                            }
+                        );
+                    }
+
+                    return true; //Impedir que se cierre el diálogo
+                }
+            },
+            btnOkCancel,
+            true,
+            true,
+            'Crear proyecto',
+            {
+                icon: '-',
+                size: 'lg'
+            });
+
+        const isFirstProject = t.projects().length === 0;
+        const openAfterCreation = $('input[type="checkbox"]', dlg).attr({disabled: isFirstProject ? 'disabled' : null});
+    }
+
+    t.updateProject = function () {
+        const content = $('#newProject').clone().removeClass('d-none').attr('id', null);
+
+        showConfirm(content,
+            {
+                ok: function () {
+
+                }
+            },
+            btnOkCancel,
+            true,
+            true,
+            'Actualizar proyecto',
+            {
+                icon: '-',
+                size: 'lg'
+            });
+    }
+
+    /**
+     * Cierra todos los archivos y abre otro proyecto
+     * @param project
+     */
+    t.openProject = function (project) {
+        execAfterCloseAllFunc = function () {
+            doPost('main/openProject', {projectId: project.id},
+                function (r) {
+                    if (!!r.ok)
+                        document.location.reload();
+                    else
+                        sysMsgs.show(r.error, __MSG_ERROR, true);
+                })
+        }
+
+        t.closeAll();
     }
 
     t.editFileData = function (fileData) {
@@ -1043,24 +1144,6 @@ class ControllerSample extends Controller {\n\
                         }, 'json');
                 }
             });
-    }
-
-    /**
-     * Cierra todos los archivos y abre otro proyecto
-     * @param project
-     */
-    t.openProject = function (project) {
-        execAfterCloseAllFunc = function () {
-            doPost('main/openProject', {projectId: project.id},
-                function (r) {
-                    if (!!r.ok)
-                        document.location.reload();
-                    else
-                        sysMsgs.show(r.error, __MSG_ERROR, true);
-                })
-        }
-
-        t.closeAll();
     }
 
     /**

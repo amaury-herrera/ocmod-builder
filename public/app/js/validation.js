@@ -501,7 +501,7 @@ Validator.prototype = {
 
 //URL
     url: function (v) {
-        return /^(http|https|ftp):\/\/(([A-Z0-9][A-Z0-9_-]*)(\.[A-Z0-9][A-Z0-9_-]*)+)(:(\d+))?\/?/i.test(v);
+        return /^(https?|ftp):\/\/([-A-Z0-9.]+)((:[1-9]?[0-9]*)?\/[-A-Z0-9+&@#/%=~_|!:,.;]*)?(\?[A-Z0-9+&@#/%=~_|!:,.;]*)?/i.test(v);
     },
 
 //Fecha con formato dd/mm/aaaa
@@ -754,6 +754,26 @@ Validator.prototype.validate = function (elem) {
         if (d.r.indexOf('trim') >= 0)
             val = val.trim();
 
+        function showError() {
+            if (d.error === true)
+                d.error = false;
+
+            if (d.error === d.lastError)
+                return true;
+
+            if (d.error)
+                t.showError(d);
+            else {
+                d.p.removeClass(t.errorClasses);
+                d.e.removeClass(t.errorClasses);
+                d.e.unbind('.myEvents');
+
+                d.ttel.tooltip('dispose');
+            }
+
+            d.lastError = d.error;
+        }
+
         if ((d.r[0] === 'required' || d.r[0] === 'required_trim')
             || d.r[0].indexOf('ifchecked') === 0
             || d.r[0].indexOf('force_evaluate') >= 0//=== 0
@@ -764,52 +784,49 @@ Validator.prototype.validate = function (elem) {
                 if (d.error)
                     return;
 
-                /^([a-z]?[a-z0-9_]*)[\s]*(\[(.*)\])?$/i.test(rule);
+                let match = rule.match(/^([a-z]?[a-z0-9_]*)[\s]*(\[(.*)\])?$/i);
+                if (match && t[rule = match[1]]) {
+                    var params = (match[3] || '').split(';');
 
-                if (t[rule = RegExp.$1]) {
-                    var params = RegExp.$3.split(';');
                     params.unshift(val, d.e);
 
-                    var retVal = t[rule].apply(t, params);
-                    if (retVal === null) { //Si devuelve null se pasa por alto el control
-                        d.error = true;
-                        return;
+                    function check(retVal, isPromise) {
+                        if (retVal === null) { //Si devuelve null se pasa por alto el control
+                            d.error = true;
+                            return;
+                        }
+
+                        if (retVal === false) {
+                            res = false;
+                            var i = 2, msg = t._messages[rule];
+                            if (typeof (msg) == 'function')
+                                msg = msg();
+                            d.error = (d.m[ri] || msg || 'No válido').replace(/%/g, function () {
+                                return params[i++] || '';
+                            });
+                            var lab = d.e.data('label');
+                            if (lab)
+                                t.summary.push({label: lab, error: d.error});
+
+                            isPromise && showError();
+                        }
                     }
 
-                    if (retVal === false) {
-                        res = false;
-                        var i = 2, msg = t._messages[rule];
-                        if (typeof (msg) == 'function')
-                            msg = msg();
-                        d.error = (d.m[ri] || msg || 'No válido').replace(/%/g, function () {
-                            return params[i++] || '';
+                    var retValue = t[rule].apply(t, params);
+
+                    if (retValue instanceof Promise) {
+                        retValue.then(function (v) {
+                            !v && check(v, true);
                         });
-                        var lab = d.e.data('label');
-                        if (lab)
-                            t.summary.push({label: lab, error: d.error});
-                    }
+                    } else
+                        check(retValue, false);
                 } else
                     console.log('Regla desconocida o mal formada:', rule);
             });
         }
 
-        if (d.error === true)
-            d.error = false;
-
-        if (d.error === d.lastError)
+        if (showError(d))
             return;
-
-        if (d.error)
-            t.showError(d);
-        else {
-            d.p.removeClass(t.errorClasses);
-            d.e.removeClass(t.errorClasses);
-            d.e.unbind('.myEvents');
-
-            d.ttel.tooltip('dispose');
-        }
-
-        d.lastError = d.error;
     });
 
     return res;

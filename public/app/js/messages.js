@@ -129,7 +129,6 @@ function showDlgMessage(title, content, icon, opts) {
 //remove: Si es true (por defecto), elimina los elementos del DOM tras ocultarse el cuadro
 function showConfirm(content, callbacks, buttons, remove, backdrop, title, opts) {
     var f = $(':focus').blur(),
-        buttonClicked = false,
         hiding = false,
         dlg = getDlgContent(title || 'Confirmación', content, buttons || btnOkCancel, opts || {icon: 'check', size: 'md'})
             .on('hide.bs.modal', function () {
@@ -144,12 +143,6 @@ function showConfirm(content, callbacks, buttons, remove, backdrop, title, opts)
                         f[0].focus();
                 } catch (e) {
                 }
-
-                if (buttonClicked) {
-                    let prop = buttonClicked.substring(3).toLowerCase();
-                    if (typeof callbacks[prop] === 'function')
-                        callbacks[prop]();
-                }
             })/*
 					.on('keydown', function(e) {
 						if (e.keyCode === 13 && !$('#btnCancel', dlg).is(':focus')) {
@@ -162,12 +155,20 @@ function showConfirm(content, callbacks, buttons, remove, backdrop, title, opts)
         e.preventDefault();
 
         if (!hiding) {
-            buttonClicked = $(this).attr('id');
-            dlg.modal('hide');
+            let skipHide = true;
+            let prop = $(this).attr('id').substring(3).toLowerCase();
+            if (typeof callbacks[prop] === 'function')
+                skipHide = callbacks[prop](dlg);
+
+            if (!skipHide)
+                dlg.modal('hide');
         }
     });
 
     dlg.modal({keyboard: true, backdrop: backdrop ? 'static' : ''});
+    dlg.okFailed = function () {
+        hiding = false;
+    }
 
     return dlg;
 }

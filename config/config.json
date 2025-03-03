@@ -1,39 +1,25 @@
 {
-    "projects": {
-        "0cbc6611f5540bd0809a388dc95a615b": {
-            "projectName": "Productos de regalo",
-            "root_path": "D:\\wamp3\\www\\opencart",
-            "URL": "http:\/\/localhost\/opencart",
-            "zipFilename": "coupon_gift_products",
-            "name": "Gift Products",
-            "code": "gift_products",
-            "version": "1.0",
-            "author": "Amaury Herrera Brito",
-            "link": "",
-            "updateCache": false,
-            "lastPath": "\/admin\/language\/en-gb\/customer",
-            "lastPathOpened": 0
-        },
-        "809a388dc95a615b0cbc6611f5540bd0": {
-            "projectName": "Historial de pedidos de cliente",
-            "root_path": "D:\\wamp3\\www\\opencart",
-            "URL": "http:\/\/localhost\/opencart",
-            "zipFilename": "coupon_gift_products",
-            "name": "Customer's orders history",
-            "code": "customer_order_history",
-            "version": "1.0",
-            "author": "Amaury Herrera Brito",
-            "link": "",
-            "updateCache": false,
-            "lastPath": "\/admin\/controller\/customer",
-            "lastPathOpened": 1
-        }
-    },
-    "currentProject": "0cbc6611f5540bd0809a388dc95a615b",
     "theme": "vibrant_ink",
-    "fontSize": 13,
+    "fontSize": 16,
     "softWraps": 1,
     "softTabs": 1,
     "tabSize": 4,
-    "showLineNumbers": 1
+    "showLineNumbers": 1,
+    "currentProject": "795e61a66b459be9257facd69862d78c",
+    "projects": {
+        "795e61a66b459be9257facd69862d78c": {
+            "projectName": "Productos de regalo",
+            "root_path": "D:\\wamp3\\www\\opencart",
+            "URL": "http:\/\/localhost\/opencart",
+            "zipFilename": "gift_products",
+            "name": "Gift products",
+            "code": "gift_products",
+            "version": "1.0.0",
+            "author": "Amaury Herrera Brito",
+            "link": "",
+            "updateCache": false,
+            "lastPath": "\/admin",
+            "lastPathOpened": 0
+        }
+    }
 }

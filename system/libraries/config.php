@@ -27,14 +27,16 @@ class ConfigManager implements Iterator, ArrayAccess {
     }
 
     public function update() {
-        //        return file_put_contents($this->file, json_encode($this->data)) !== false;
+        $tmp = dirname($this->file) . '/tmp_' . microtime(true) . '_' . rand(1, 10000000) . '.tmp';
 
-        if ($f = fopen($this->file, 'wb')) {
-            flock($f, LOCK_EX);
-            $ok = fwrite($f, json_encode($this->data, JSON_PRETTY_PRINT)) !== false;
-            flock($f, LOCK_UN);
-            fclose($f);
-            return $ok;
+        if (!file_exists($this->file) || @rename($this->file, $tmp)) {
+            if (file_put_contents($this->file, json_encode($this->data, JSON_PRETTY_PRINT)) !== false) {
+                @unlink($tmp);
+                return true;
+            }
+
+            @unlink($this->file);
+            @rename($tmp, $this->file);
         }
 
         return false;

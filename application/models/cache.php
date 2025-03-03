@@ -21,7 +21,8 @@ final class CacheModel {
     }
 
     public function recreateIfNeeded() {
-        if (!file_exists(CACHE_FILE) || !empty(App::project()['updateCache'])) {
+        $project = App::project();
+        if ($project && (!file_exists(CACHE_FILE) || !empty($project['updateCache']))) {
             $this->recreate();
         }
     }

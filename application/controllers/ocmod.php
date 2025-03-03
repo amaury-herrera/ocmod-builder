@@ -86,7 +86,12 @@ class Ocmod {
         $result = MODEL::OCMOD()->createZip();
 
         if ($result === false) {
-            echo json_encode(['error' => 'No ha sido posible crear el archivo comprimido.']) . "\n";
+            echo json_encode(['error' => 'No ha sido posible crear el archivo comprimido.']);
+            die;
+        }
+
+        if (is_string($result)) {
+            echo json_encode(['error' => $result]);
             die;
         }
 

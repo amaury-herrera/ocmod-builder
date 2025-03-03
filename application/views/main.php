@@ -6,16 +6,18 @@ $currentProject = App::currentProject();
 $currentProjectIndex = $index = 0;
 
 $projects = [];
-foreach ($projectsCfg as $id => &$value) {
-    if ($currentProject == $id)
-        $currentProjectIndex = $index;
+if ($currentProject) {
+    foreach ($projectsCfg as $id => &$value) {
+        if ($currentProject == $id)
+            $currentProjectIndex = $index;
 
-    $projects[] = [
-        'id' => $id,
-        'name' => $value['projectName'],
-    ];
+        $projects[] = [
+            'id' => $id,
+            'name' => $value['projectName'],
+        ];
 
-    $index++;
+        $index++;
+    }
 }
 
 Views::BeginBlock('content');
@@ -71,25 +73,24 @@ Views::BeginBlock('content');
             <div class="form-group">
                 <label for="name">Nombre del proyecto</label>
                 <input type="text" class="form-control" name="projectName" id="name" placeholder="Nombre del proyecto" autocomplete="false"
-                       value="">
+                       value="" data-rule="required_trim,regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
             </div>
             <div class="form-group">
-                <label for="zipFilename">Nombre .ocmod.zip</label>
-                <input type="text" class="form-control" name="zipFilename" id="zipFilename" placeholder="Nombre del archivo .ocmod.zip"
-                       autocomplete="false"
-                       value="">
+                <label for="root">Carpeta raíz de OpenCart</label>
+                <input type="text" class="form-control" name="root_path" id="root" placeholder="Carpeta raíz de OpenCart" value=""
+                       data-rule="required_trim,checkRoot">
             </div>
         </div>
         <div class="col-6 col-lg-8">
             <div class="form-group">
-                <label for="root">Carpeta raíz de OpenCart</label>
-                <input type="text" class="form-control" name="root_path" id="root" placeholder="Carpeta raíz de OpenCart"
-                       value="">
+                <label for="zipFilename">Nombre .ocmod.zip</label>
+                <input type="text" class="form-control" name="zipFilename" id="zipFilename" placeholder="Nombre del archivo .ocmod.zip"
+                       autocomplete="false" value="" data-rule="required_trim,regexp[re]" data-re="/^[a-z0-9_-]{3,64}$/i">
             </div>
             <div class="form-group">
                 <label for="url">URL de OpenCart</label>
-                <input type="text" class="form-control" name="url" id="url" placeholder="URL de OpenCart"
-                       value="">
+                <input type="text" class="form-control" name="url" id="url" placeholder="URL de OpenCart" value=""
+                    data-rule="required,url,regexp[re],checkURL" data-re="/^https?/", data-msg="||La URL debe ser http o https">
             </div>
         </div>
     </div>
@@ -101,53 +102,65 @@ Views::BeginBlock('content');
 &lt;modification&gt;
   &lt;name&gt;</pre>
             <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="name" placeholder="Nombre"
-                       value="">
+                <input type="text" class="form-control form-control-sm" name="name" placeholder="Nombre" data-tooltip-place="right"
+                       value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
             </div>
             <pre class="d-inline p-0" style="line-height: 1em">&lt;/name&gt;
   &lt;code&gt;</pre>
             <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="code" placeholder="Código"
-                       value="">
+                <input type="text" class="form-control form-control-sm" name="code" placeholder="Código" data-tooltip-place="right"
+                       value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[a-z_-]{3,64}$/">
             </div>
             <pre class="d-inline p-0">&lt;/code&gt;
   &lt;version&gt;</pre>
             <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="version" placeholder="Versión"
-                       value="">
+                <input type="text" class="form-control form-control-sm" name="version" placeholder="Versión" data-tooltip-place="right"
+                       value="" data-rule="required_trim,maxlength[32],regexp[re]" data-re="/^[1-9][0-9]{0,3}\.(0|[1-9][0-9]{0,3})(\.(0|[1-9][0-9]{0,3}))?$/">
             </div>
             <pre class="d-inline p-0">&lt;/version&gt;
   &lt;author&gt;</pre>
             <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="author" placeholder="Autor"
-                       value="">
+                <input type="text" class="form-control form-control-sm" name="author" placeholder="Autor" data-tooltip-place="right"
+                       value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
             </div>
             <pre class="d-inline p-0">&lt;/author&gt;
   &lt;link&gt;</pre>
             <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="link" placeholder="Link"
-                       value="">
+                <input type="text" class="form-control form-control-sm" name="link" placeholder="Link" data-tooltip-place="right"
+                       value="" data-rule="maxlength[255],url">
             </div>
-            <pre class="d-inline p-0">&lt;/author&gt;
+            <pre class="d-inline p-0">&lt;/link&gt;
 &lt;/modification>
                 </pre>
         </div>
     </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="form-group form-check mt-3 mb-0">
+                <input type="checkbox" class="form-check-input" id="openProj" value="1" checked>
+                <label class="form-check-label" for="openProj">Abrir proyecto luego de ser creado</label>
+            </div>
+        </div>
+    </div>
 </div>
 
-<nav class="main-header navbar navbar-expand navbar-dark ml-0">
+<nav class="main-header navbar navbar-expand navbar-dark ml-0" data-bind="let: {noProj: !currentProject()}">
     <ul class="navbar-nav">
         <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="mnuFile" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Archivo</a>
             <div class="dropdown-menu" aria-labelledby="mnuFile"
-                 data-bind="let: {noFileOpened: openedFiles().length == 0, saveDisabled: openedFiles().length == 0 || (currentEditor() && !currentEditor().modified())}">
+                 data-bind="let: {noFileOpened: openedFiles().length == 0,
+                                  saveDisabled: openedFiles().length == 0 || (currentEditor() && !currentEditor().modified())}">
                 <div class="dropdown-submenu">
                     <a class="dropdown-item dropdown-toggle" href="#" id="newDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
                        aria-expanded="false">Nuevo</a>
                     <div class="dropdown-menu" aria-labelledby="newDropdown">
-                        <a class="dropdown-item" href="#" data-bind="click: function() { newFile({lang: 'PHP', ext:'.php'}); }">PHP</a>
-                        <a class="dropdown-item" href="#" data-bind="click: function() { newFile({lang: 'Javascript', ext:'.js'}); }">Javascript</a>
-                        <a class="dropdown-item" href="#" data-bind="click: function() { newFile({lang: 'Twig', ext:'.twig'}); }">Twig</a>
+                        <a class="dropdown-item" href="#"
+                           data-bind="css: {disabled: noProj}, click: function() { newFile({lang: 'PHP', ext:'.php'}); }">PHP</a>
+                        <a class="dropdown-item" href="#"
+                           data-bind="css: {disabled: noProj}, click: function() { newFile({lang: 'Javascript', ext:'.js'}); }">Javascript</a>
+                        <a class="dropdown-item" href="#"
+                           data-bind="css: {disabled: noProj}, click: function() { newFile({lang: 'Twig', ext:'.twig'}); }">Twig</a>
                     </div>
                 </div>
                 <a class="dropdown-item" href="#" data-bind="click: function() { save(); }, disable: saveDisabled,
@@ -162,35 +175,28 @@ Views::BeginBlock('content');
             </div>
         </li>
         <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="mnuProj" role="button" data-toggle="dropdown" aria-haspopup="true"
+               aria-expanded="false">Proyecto</a>
+            <div class="dropdown-menu" aria-labelledby="mnuProj">
+                <a class="dropdown-item" href="#" data-bind="click: newProject">Crear nuevo proyecto...</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: updateProject">Actualizar datos...</a>
+            </div>
+        </li>
+        <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="mnuOcmod" role="button" data-toggle="dropdown" aria-haspopup="true"
                aria-expanded="false">OCMOD</a>
             <div class="dropdown-menu" aria-labelledby="mnuOcmod"
                  data-bind="let: {noFileOpened: openedFiles().length == 0, saveDisabled: openedFiles().length == 0 || (currentEditor() && !currentEditor().modified())}">
-                <a class="dropdown-item" href="#" data-bind="click: install">Instalar cambios en OpenCart</a>
-                <a class="dropdown-item" href="#" data-bind="click: clearModifications">Limpiar modificaciones</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: install">Instalar cambios en OpenCart</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: clearModifications">Limpiar modificaciones</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#" data-bind="click: downloadZip">Descargar archivo ocmod.zip</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: downloadZip">Descargar archivo ocmod.zip</a>
             </div>
         </li>
         <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="mnuEdit" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Editor</a>
             <div class="dropdown-menu" aria-labelledby="mnuEdit">
-                <!--<div class="dropdown-submenu">
-                    <a class="dropdown-item dropdown-toggle" href="#" id="newDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
-                       aria-expanded="false">Tema</a>
-                    <div class="dropdown-menu" aria-labelledby="newDropdown" data-bind="foreach: themes">
-                        <a class="dropdown-item" href="#" data-bind="click: $root.editorTheme, text: $data"></a>
-                    </div>
-                </div>-->
-                <a class="dropdown-item" href="#" data-bind="click: setEditorOptions">Opciones...</a>
-            </div>
-        </li>
-        <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="mnuProj" role="button" data-toggle="dropdown" aria-haspopup="true"
-               aria-expanded="false">Proyecto</a>
-            <div class="dropdown-menu" aria-labelledby="mnuProj">
-                <a class="dropdown-item" href="#" data-bind="click: newProject">Crear nuevo proyecto...</a>
-                <a class="dropdown-item" href="#" data-bind="click: updateProject">Actualizar datos...</a>
+                <a class="dropdown-item" href="#" data-bind="click: setEditorOptions">Preferencias...</a>
             </div>
         </li>
         <li class="nav-item dropdown">
@@ -208,7 +214,7 @@ Views::BeginBlock('content');
     </ul>
 
     <!--Projects-->
-    <ul class="navbar-nav ml-auto">
+    <ul class="navbar-nav ml-auto" data-bind="if: currentProject">
         <li class="nav-item dropdown">
             <a class="nav-link bg-danger rounded-pill" href="#" id="projectsDD" role="button" data-toggle="dropdown"
                aria-haspopup="true" aria-expanded="false" data-bind="css: {'dropdown-toggle': projects().length > 1}">
@@ -233,17 +239,17 @@ Views::BeginBlock('content');
     <div class="row">
         <div class="col-12 mt-1">
             <div id="container">
-                <div id="browser" data-bind="let: {actFolder: activeLeaf(), isNew: activeLeaf().new()}">
+                <div id="browser" data-bind="let: {actFolder: activeLeaf(), isNew: activeLeaf() && activeLeaf().new()}">
                     <div class="card card-dark" style="margin: 0">
                         <div class="card-header">
                             <h3 class="card-title strong">Carpetas</h3>
                             <div class="btn-group">
                                 <button class="btn btn-sm" type="button" title="Carpetas con archivos con peticiones de cambio"
-                                        data-bind="click: function() { toggle('OCMODed') }, css: {'btn-danger': OCMODed, 'btn-dark': !OCMODed()}">
+                                        data-bind="disable: !currentProject(), click: function() { toggle('OCMODed') }, css: {'btn-danger': OCMODed, 'btn-dark': !OCMODed()}">
                                     <i class="fa fa-pencil"></i>
                                 </button>
                                 <button class="btn btn-sm" type="button" title="Carpetas con archivos nuevos"
-                                        data-bind="click: function() { toggle('Uploaded') }, css: {'btn-danger': Uploaded, 'btn-dark': !Uploaded()}">
+                                        data-bind="disable: !currentProject(), click: function() { toggle('Uploaded') }, css: {'btn-danger': Uploaded, 'btn-dark': !Uploaded()}">
                                     <i class="fa fa-upload"></i>
                                 </button>
                                 <!--<button class="btn btn-sm" type="button" title="Carpetas con archivos modificados"
@@ -252,7 +258,8 @@ Views::BeginBlock('content');
                                 </button>-->
                             </div>
                             <div class="separator">&nbsp;</div>
-                            <button class="btn btn-info" type="button" data-bind="click: $root.createDir"><i class="fa fa-folder"></i><sup
+                            <button class="btn btn-info" type="button" data-bind="disable: !currentProject(), click: $root.createDir"><i
+                                        class="fa fa-folder"></i><sup
                                         class="fa fa-asterisk"></sup></button>
                             <button class="btn btn-info" type="button" data-bind="disable: !isNew, click: $root.renameDir">
                                 <i class="fa fa-folder"></i><sup class="fa fa-pencil"></sup></button>
@@ -260,7 +267,7 @@ Views::BeginBlock('content');
                                 <i class="fa fa-folder"></i><sup class="fa fa-trash"></sup>
                             </button>
                         </div>
-                        <div class="card-body" id="treePanel">
+                        <div class="card-body" id="treePanel" data-bind="if: activeLeaf">
                             <div class="treeContainer"
                                  data-bind="template: {name: 'tree_tpl', data: {isRoot: true, leaf: tree().c, opened: function() { return true; }}}"></div>
                         </div>
@@ -272,6 +279,7 @@ Views::BeginBlock('content');
                             <ul class="navbar-nav">
                                 <li class="nav-item dropdown">
                                     <a class="px-2 nav-link bg-info rounded fa fa-file-text" href="#" id="fileList" role="button"
+                                       data-bind="css: {disabled: !currentProject()}"
                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><sup class="fa fa-asterisk"></sup>&nbsp;<span
                                                 class="fa fa-angle-down"></span>
                                     </a>
@@ -365,7 +373,9 @@ Views::BeginBlock('content');
 <script type="application/javascript">
     function folders() {
         return <?php
-            if (is_readable(CACHE_FILE))
+            if (is_null($currentProject))
+                echo '[]';
+            elseif (is_readable(CACHE_FILE))
                 readfile(CACHE_FILE);
             else
                 echo json_encode([['n' => $project['name']]]);
@@ -376,11 +386,13 @@ Views::BeginBlock('content');
         return <?php echo json_encode($projects); ?>;
     }
 
+    function projectData() {
+        return <?php echo json_encode($project) ?>;
+    }
+
     function initData() {
         return {
             projectIndex: <?php echo $currentProjectIndex; ?>,
-            lastPath: '<?php echo @$project['lastPath']; ?>',
-            lastPathOpened: <?php echo empty($project['lastPathOpened']) ? 'false' : 'true'; ?>,
             theme: '<?php echo $cfg->theme; ?>',
             fontSize: <?php echo $cfg->fontSize; ?>,
             softWraps: <?php echo $cfg->softWraps ? 'true' : 'false'; ?>,
