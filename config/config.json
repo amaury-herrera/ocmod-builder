@@ -1,19 +1,37 @@
 {
     "theme": "vibrant_ink",
-    "fontSize": 16,
+    "fontSize": 13,
     "softWraps": 1,
     "softTabs": 1,
     "tabSize": 4,
     "showLineNumbers": 1,
-    "currentProject": "795e61a66b459be9257facd69862d78c",
+    "currentProject": "gift_products",
     "projects": {
-        "795e61a66b459be9257facd69862d78c": {
+        "gift_products": {
             "projectName": "Productos de regalo",
             "root_path": "D:\\wamp3\\www\\opencart",
-            "URL": "http:\/\/localhost\/opencart",
+            "url": "http:\/\/localhost\/opencart",
             "zipFilename": "gift_products",
             "name": "Gift products",
-            "code": "gift_products",
+            "version": "1.0.0",
+            "author": "Amaury Herrera Brito",
+            "link": "",
+            "updateCache": false,
+            "lastPath": "\/admin\/language\/en-gb\/customer",
+            "lastPathOpened": 0,
+            "openedFiles": [
+                "orig|0,0|\/admin\/language\/en-gb\/customer\/customer.php",
+                "ocmod|6,12|\/admin\/language\/en-gb\/customer\/customer.php",
+                "diff|0,0|\/admin\/language\/en-gb\/customer\/customer.php"
+            ],
+            "lastOpenedFile": 0
+        },
+        "client_order_history": {
+            "projectName": "Historial de pedidos de cliente",
+            "root_path": "D:\\wamp3\\www\\opencart",
+            "url": "http:\/\/localhost\/opencart",
+            "zipFilename": "client_order_history",
+            "name": "Client orders history",
             "version": "1.0.0",
             "author": "Amaury Herrera Brito",
             "link": "",

@@ -185,6 +185,7 @@ class OCMODModel {
 
     public function createZip($zipFilename = '') {
         $proj = App::project();
+        $code = App::currentProject();
 
         $zips = glob(PATH_TEMP . '*.*');
         foreach ($zips as $zip)
@@ -208,7 +209,7 @@ class OCMODModel {
         $this->xml = trim("<?xml version=\"1.0\" encoding=\"utf-8\"?>
 <modification>
   <name>{$proj['name']}</name>
-  <code>{$proj['code']}</code>
+  <code>{$code}</code>
   <version>{$proj['version']}</version>
   <author>{$proj['author']}</author>");
 

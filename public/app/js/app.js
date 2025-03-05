@@ -533,7 +533,8 @@ class ControllerSample extends Controller {\n\
                 t.fileList(d.files);
             }, 'json');
 
-        isFirstLoad = false;
+        if (projectData().openedFiles.length === 0)
+            isFirstLoad = false;
     });
 
     if (originalTree.length > 0) {
@@ -729,6 +730,73 @@ class ControllerSample extends Controller {\n\
         });
     }
 
+    function addCheckRootRule(validator) {
+        validator.addRule('checkRoot',
+            function (v) {
+                const reqData = new FormData();
+                reqData.append('path', v);
+
+                async function get() {
+                    const resp = await fetch('main/checkRoot',
+                        {
+                            method: 'POST',
+                            body: reqData,
+                            headers: {'X-Requested-With': 'XMLHttpRequest'}
+                        });
+
+                    if (resp.ok) {
+                        const ret = await resp.json();
+                        return ret.ok;
+                    }
+
+                    return true;
+                }
+
+                return get();
+            }, 'La ruta no es válida');
+    }
+
+    function addCheckURLRule(validator) {
+        validator.addRule('checkURL',
+            function (v) {
+                const reqData = new FormData();
+                reqData.append('url', v);
+
+                async function get() {
+                    const resp = await fetch('main/checkURL',
+                        {
+                            method: 'POST',
+                            body: reqData,
+                            headers: {'X-Requested-With': 'XMLHttpRequest'}
+                        });
+
+                    if (resp.ok) {
+                        const ret = await resp.json();
+                        return ret.ok;
+                    }
+
+                    return true;
+                }
+
+                return get();
+            }, 'La URL de OpenCart no es válida');
+    }
+
+    function updateOpenedFiles() {
+        let curIndex = -1,
+            openedFiles = t.openedFiles().map(function (ed, i) {
+                if (ed === t.currentEditor())
+                    curIndex = i;
+                let csrPos = ed.editor.getSelection().cursor.getPosition();
+                return ed.action + '|' + csrPos.row + ',' + csrPos.column + '|' + ed.path + '/' + ed.filename;
+            });
+
+        doPost('main/saveOpenedFiles', {openedFiles: openedFiles, lastOpenedFile: curIndex}, null, {
+            lock: false, failFn: function () {
+            }
+        });
+    }
+
     /**
      * Crea un nuevo proyecto y lo activa si es el primero
      */
@@ -740,78 +808,37 @@ class ControllerSample extends Controller {\n\
                 ok: function (dlg) {
                     const validator = new Validator($('form', dlg));
 
-                    validator.addRule('checkRoot',
-                        function (v) {
-                            const reqData = new FormData();
-                            reqData.append('path', v);
+                    addCheckRootRule(validator);
+                    addCheckURLRule(validator);
 
-                            async function get() {
-                                const resp = await fetch('main/checkRoot',
-                                    {
-                                        method: 'POST',
-                                        body: reqData,
-                                        headers: {'X-Requested-With': 'XMLHttpRequest'}
-                                    });
+                    validator.validate()
+                        .then(function (ok) {
+                            $('button', dlg).attr('disabled', 'disabled');
 
-                                if (resp.ok) {
-                                    const ret = await resp.json();
-                                    return ret.ok;
-                                }
-
-                                return true;
+                            function onFail() {
+                                $('button', dlg).attr('disabled', null);
+                                dlg.okFailed();
                             }
 
-                            return get();
-                        }, 'La ruta no es válida');
-
-                    validator.addRule('checkURL',
-                        function (v) {
-                            const reqData = new FormData();
-                            reqData.append('url', v);
-
-                            async function get() {
-                                const resp = await fetch('main/checkURL',
-                                    {
-                                        method: 'POST',
-                                        body: reqData,
-                                        headers: {'X-Requested-With': 'XMLHttpRequest'}
-                                    });
-
-                                if (resp.ok) {
-                                    const ret = await resp.json();
-                                    return ret.ok;
+                            doPost('main/createProject', validator.getValues(),
+                                function (r) {
+                                    if (r.ok) {
+                                        dlg.modal('hide');
+                                        if (isFirstProject || openAfterCreation.is(':checked'))
+                                            document.location.reload();
+                                    } else {
+                                        sysMsgs.show(r.error, __MSG_ERROR);
+                                        onFail();
+                                    }
+                                },
+                                {
+                                    failFn: function () {
+                                        sysMsgs.show('No ha sido posible crear el proyecto.', __MSG_ERROR);
+                                        onFail();
+                                    }
                                 }
-
-                                return true;
-                            }
-
-                            return get();
-                        }, 'La URL de OpenCart no es válida');
-
-                    if (validator.validate()) {
-                        $('button', dlg).attr('disabled', 'disabled');
-
-                        function onFail() {
-                            $('button', dlg).attr('disabled', null);
-                            dlg.okFailed();
-                        }
-
-                        doPost('main/createProject', validator.getValues(),
-                            function (r) {
-                                if (r.ok) {
-                                    dlg.modal('hide');
-                                    if (isFirstProject || openAfterCreation.is(':checked'))
-                                        document.location.reload();
-                                } else {
-                                    sysMsgs.show(r.error, __MSG_ERROR);
-                                    onFail();
-                                }
-                            },
-                            {
-                                failFn: onFail
-                            }
-                        );
-                    }
+                            );
+                        })
 
                     return true; //Impedir que se cierre el diálogo
                 }
@@ -829,23 +856,92 @@ class ControllerSample extends Controller {\n\
         const openAfterCreation = $('input[type="checkbox"]', dlg).attr({disabled: isFirstProject ? 'disabled' : null});
     }
 
+    /**
+     * Actualiza los datos del proyecto activo
+     */
     t.updateProject = function () {
         const content = $('#newProject').clone().removeClass('d-none').attr('id', null);
 
-        showConfirm(content,
+        const dlg = showConfirm(content,
             {
-                ok: function () {
+                ok: function (dlg) {
+                    const validator = new Validator($('form', dlg));
 
+                    addCheckRootRule(validator);
+                    addCheckURLRule(validator);
+
+                    validator.validate()
+                        .then(function (ok) {
+                            if (ok) {
+                                $('button', dlg).attr('disabled', 'disabled');
+
+                                t.saveAll(function () {
+                                    function onFail() {
+                                        $('button', dlg).attr('disabled', null);
+                                        dlg.okFailed();
+                                    }
+
+                                    const newValues = validator.getValues();
+
+                                    let modified = false;
+                                    props.forEach(function (n) {
+                                        modified ||= pdata[n] !== newValues[n];
+                                    });
+                                    modified ||= newValues.code !== t.currentProject().code;
+
+                                    if (modified) {
+                                        doPost('main/updateProject', newValues,
+                                            function (r) {
+                                                if (r.ok) {
+                                                    document.location.reload();
+                                                } else {
+                                                    if (r.error)
+                                                        sysMsgs.show(r.error, __MSG_ERROR);
+                                                    onFail();
+                                                }
+                                            },
+                                            {
+                                                failFn: function () {
+                                                    sysMsgs.show('No ha sido posible actualizar los datos del proyecto.', __MSG_ERROR);
+                                                    onFail();
+                                                }
+                                            }
+                                        );
+                                    } else {
+                                        onFail();
+                                        sysMsgs.show('No ha introducido cambios que deban ser guardados.', __MSG_INFO, true);
+                                    }
+                                });
+                            }
+                        });
+
+                    return true; //Impedir que se cierre el diálogo
                 }
             },
             btnOkCancel,
             true,
             true,
-            'Actualizar proyecto',
+            'Actualizar datos del proyecto',
             {
                 icon: '-',
                 size: 'lg'
             });
+
+        //Llenar los controles con los valores actuales
+        const pdata = projectData(),
+            props = ['projectName', 'root_path', 'zipFilename', 'url', 'name', 'version', 'author', 'link'];
+        props.forEach(function (n) {
+            $('input[name="' + n + '"]', dlg).val(pdata[n]);
+        });
+        $('input[name="code"]', dlg).val(t.currentProject().code);
+
+        $('#openProjectRow', dlg).remove();
+
+        //Mostrar el cuadro de información solamente si hay archivos sin guardar
+        if (t.openedFiles().some(function (f) {
+            return f.modified();
+        }))
+            $('#reloadWarn', dlg).removeClass('d-none');
     }
 
     /**
@@ -854,7 +950,7 @@ class ControllerSample extends Controller {\n\
      */
     t.openProject = function (project) {
         execAfterCloseAllFunc = function () {
-            doPost('main/openProject', {projectId: project.id},
+            doPost('main/openProject', {projectCode: project.code},
                 function (r) {
                     if (!!r.ok)
                         document.location.reload();
@@ -866,8 +962,8 @@ class ControllerSample extends Controller {\n\
         t.closeAll();
     }
 
-    t.editFileData = function (fileData) {
-        t.editFile(fileData, fileData.u() ? 'upload' : (fileData.m() ? 'orig' : 'ocmod'));
+    t.loadFileFromData = function (fileData) {
+        t.loadFile(fileData, fileData.u() ? 'upload' : (fileData.m() ? 'orig' : 'ocmod'));
     }
 
     /**
@@ -881,17 +977,21 @@ class ControllerSample extends Controller {\n\
      * -diff    Diferencias entre el archivo original y el archivo en modifications
      * -upload  Archivo nuevo en projects/xxxx/publish/upload
      */
-    t.editFile = function (filedata, action) {
+    t.loadFile = function (filedata, action, next) {
         const of = t.openedFiles();
 
-        //Open file from list of openend files
+        //Open file from the list of opened files
         if (of.indexOf(filedata) >= 0) {
             t.currentEditor(filedata);
             filedata.editor.focus();
+
+            updateOpenedFiles();
             return;
         }
 
-        const filename = filedata.n();
+        const filename = typeof filedata === 'string'
+            ? filedata.substring(filedata.lastIndexOf('/') + 1)
+            : filedata.n();
 
         if (!t.isEditable(filename))
             return;
@@ -902,11 +1002,18 @@ class ControllerSample extends Controller {\n\
             if (ed.path === t.curPath() && ed.filename === filename && ed.action === action) {
                 t.currentEditor(ed);
                 ed.editor.focus();
+
+                updateOpenedFiles();
                 return;
             }
         }
         const
-            file = t.curPath() + '/' + filename,
+            file = typeof (filedata) === 'string'
+                ? filedata
+                : t.curPath() + '/' + filename,
+            filePath = typeof filedata === 'string'
+                ? filedata.substring(0, filedata.lastIndexOf('/'))
+                : t.curPath(),
             ext = file.substring(file.lastIndexOf('.')).toLowerCase(),
             lang = ext == '.php' ? 'php' : (ext == '.twig' ? 'twig' : (ext == '.js' ? 'javascript' : ''));
 
@@ -968,7 +1075,7 @@ class ControllerSample extends Controller {\n\
         let editorData = {
             id: 'ed_' + Date.now(),
             action: action,
-            path: t.curPath(),
+            path: filePath,
             filename: filename,
             lang: lang,
             isEditableFile: false,
@@ -994,13 +1101,31 @@ class ControllerSample extends Controller {\n\
             action: action
         };
 
-        $.post('main/get_file', data, function (d) {
-            if ('content' in d) {
-                createEditor(d.content, d.isDiff);
-            } else {
-                sysMsgs.show(d.error, __MSG_ERROR, true)
-            }
-        }, 'json');
+        doPost('main/get_file', data, function (d) {
+                if ('content' in d) {
+                    createEditor(d.content, d.isDiff);
+
+                    if (!isFirstLoad)
+                        updateOpenedFiles();
+
+                    if (typeof (next) === 'function') {
+                        setTimeout(function () {
+                            next(editorData);
+                        });
+                    }
+                } else {
+                    if (typeof (next) === 'function')
+                        setTimeout(next);
+                    else
+                        sysMsgs.show(d.error, __MSG_ERROR, true)
+                }
+            },
+            {
+                failFn: function () {
+                    if (typeof (next) === 'function')
+                        setTimeout(next);
+                }
+            });
     }
 
     /**
@@ -1237,13 +1362,18 @@ class ControllerSample extends Controller {\n\
     /**
      * Guarda todos los archivos modificados
      */
-    t.saveAll = function () {
+    t.saveAll = function (onAllSaved) {
         let unsaved = t.openedFiles().filter(function (f) {
             return f.modified();
         });
 
         if (unsaved.length > 0)
-            t.save(t.saveAll, unsaved[0]);
+            t.save(function () {
+                t.saveAll(onAllSaved);
+            }, unsaved[0]);
+        else if (typeof onAllSaved === 'function') {
+            onAllSaved();
+        }
     }
 
     /**
@@ -1521,7 +1651,7 @@ class ControllerSample extends Controller {\n\
                     path: t.curPath()
                 }
 
-                t.editFileData(fileData);
+                t.loadFileFromData(fileData);
             },
             {
                 rules: 'required_trim,maxlength[24],regexp[re],checkDups',
@@ -2020,6 +2150,47 @@ class ControllerSample extends Controller {\n\
     }
 
     enableNavButtons();
+
+    const projData = projectData(),
+        lastOpenedFileData = projData.lastOpenedFile >= 0 ? projData.openedFiles[projData.lastOpenedFile] : '';
+
+    function loadOpenedFiles() {
+        const fileData = projData.openedFiles.shift();
+
+        if (fileData) {
+            const fdata = fileData.split('|');
+            t.loadFile(fdata[2], fdata[0],
+                function (editorData) {
+                    if (editorData) {
+                        const cPos = fdata[1].split(',');
+                        editorData.editor.session.getSelection().cursor.setPosition(parseInt(cPos[0]), parseInt(cPos[1]));
+                    }
+
+                    loadOpenedFiles();
+                });
+        } else {
+            isFirstLoad = false;
+
+            //Buscar el último archivo activo y activarlo
+            if (lastOpenedFileData) {
+                const fdata = lastOpenedFileData.split('|');
+
+                if (t.openedFiles().length > 0) {
+                    let ed = t.openedFiles().filter(function (f) {
+                        return f.path + '/' + f.filename === fdata[2] && f.action === fdata[0];
+                    });
+
+                    if (ed.length === 0)
+                        ed = t.openedFiles();
+
+                    t.currentEditor(ed[0]);
+                }
+            }
+        }
+    }
+
+    if (projData.openedFiles)
+        loadOpenedFiles();
 
     $('.dropdown-menu a.dropdown-toggle').on('click', function (e) {
         if (!$(this).next().hasClass('show')) {

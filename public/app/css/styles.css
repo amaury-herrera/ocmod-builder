@@ -97,6 +97,11 @@ form {
     flex-grow: 1;
 }
 
+.modal-body {
+    max-height: calc(100vh - 220px);
+    overflow: auto;
+}
+
 .dropdown-submenu {
     position: relative;
 }

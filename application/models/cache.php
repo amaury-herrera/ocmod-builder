@@ -12,12 +12,12 @@ final class CacheModel {
     private $option = null;
 
     public function recreate($echo = false) {
-        @file_put_contents(CACHE_FILE, $code = json_encode(MODEL::Files()->getTree(), $this->option));
+        @file_put_contents(CACHE_FILE, $json = json_encode(MODEL::Files()->getTree(), $this->option));
 
         $this->setUpdateConfig(false);
 
         if ($echo)
-            echo $code;
+            echo $json;
     }
 
     public function recreateIfNeeded() {

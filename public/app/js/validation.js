@@ -699,9 +699,13 @@ Validator.prototype.clear = function (elem) {
  * @returns {boolean}
  */
 Validator.prototype.validate = function (elem) {
-    var t = this, res = true;
+    let t = this;
+
+    let res = true;
 
     t.refreshControls(elem);
+
+    const promises = [];
 
     if (elem) {
         if (typeof (elem) === 'string')
@@ -815,6 +819,7 @@ Validator.prototype.validate = function (elem) {
                     var retValue = t[rule].apply(t, params);
 
                     if (retValue instanceof Promise) {
+                        promises.push(retValue);
                         retValue.then(function (v) {
                             !v && check(v, true);
                         });
@@ -829,5 +834,13 @@ Validator.prototype.validate = function (elem) {
             return;
     });
 
-    return res;
-};
+    return promises.length === 0
+        ? res
+        : new Promise(function (resolve, reject) {
+            Promise.all(promises).then(function () {
+                resolve(res);
+            }).catch(function (error) {
+                reject(error);
+            });
+        });
+}

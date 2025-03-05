@@ -23,12 +23,32 @@ class Main {
      */
     public function ajax_saveLastPath() {
         $cfg = App::Config();
-        $projects = $cfg->projects;
         $curProj = App::currentProject();
+
+        $projects = $cfg->projects;
         $projects[$curProj]['lastPath'] = Post::path();
         $projects[$curProj]['lastPathOpened'] = (int)Post::opened();
+
         $cfg->projects = $projects;
-        $cfg->update();
+
+        echo json_encode(['ok' => $cfg->update()]);
+    }
+
+    /**
+     * Actualiza la lista de archivos abiertos en el proyecto activo
+     * @return void
+     */
+    public function ajax_saveOpenedFiles() {
+        $cfg = App::Config();
+        $curProj = App::currentProject();
+
+        $projects = $cfg->projects;
+        $projects[$curProj]['openedFiles'] = Post::openedFiles();
+        $projects[$curProj]['lastOpenedFile'] = (int)Post::lastOpenedFile();
+
+        $cfg->projects = $projects;
+
+        echo json_encode(['ok' => $cfg->update()]);
     }
 
     /**
@@ -78,8 +98,8 @@ class Main {
     public function ajax_openProject() {
         $cfg = App::Config();
         $projects = $cfg->projects;
-        if (array_key_exists(Post::projectId(), $projects)) {
-            $cfg->currentProject = Post::projectId();
+        if (array_key_exists(Post::projectCode(), $projects)) {
+            $cfg->currentProject = Post::projectCode();
             $cfg->update();
 
             echo json_encode(['ok' => true]);
@@ -94,34 +114,35 @@ class Main {
      * @return void
      */
     public function ajax_createProject() {
-        $key = md5(strtolower(Post::code()));
+        $code = strtolower(Post::code());
 
         $cfg = App::Config();
 
         $projects = $cfg->projects;
         if (!$projects) {
             $projects = [];
-            $cfg->currentProject = $key;
+            $cfg->currentProject = $code;
         }
 
-        if (array_key_exists($key, $projects)) {
+        if (array_key_exists($code, $projects)) {
             echo json_encode(['error' => 'Ya existe un proyecto con el código: ' . Post::code() . '.']);
             return;
         }
 
-        $projects[$key] = [
+        $projects[$code] = [
             'projectName' => Post::projectName(),
             'root_path' => Post::root_path(),
-            'URL' => Post::url(),
+            'url' => Post::url(),
             'zipFilename' => Post::zipFilename(),
             'name' => Post::name(),
-            'code' => Post::code(),
             'version' => Post::version(),
             'author' => Post::author(),
             'link' => Post::link(),
             'updateCache' => true,
             'lastPath' => '/admin',
             'lastPathOpened' => 0,
+            'openedFiles' => [],
+            'lastOpenedFile' => ''
         ];
 
         $cfg->projects = $projects;
@@ -129,16 +150,96 @@ class Main {
         echo json_encode(['ok' => $cfg->update()]);
     }
 
-    public function ajax_checkRoot() {
-        $path = rtrim(Post::path(), '\\/');
+    /**
+     * Crea un nuevo proyecto y lo establece como activo si es el primero
+     * @return void
+     */
+    public function ajax_updateProject() {
+        if (!$this->checkRoot(Post::root_path())) {
+            echo json_encode(['error' => 'La carpeta raíz de OpenCart especificada no es válida.']);
+            return;
+        }
 
-        echo json_encode(['ok' => is_dir($path) && is_dir($path . '/admin') && is_dir($path . '/catalog') && is_readable($path)]);
+        if (!$this->checkURL(Post::url())) {
+            echo json_encode(['error' => 'La URL de OpenCart especificada no es válida.']);
+            return;
+        }
+
+        $code = strtolower(Post::code());
+
+        $cfg = App::Config();
+
+        $projects = $cfg->projects;
+
+        //Verificar que existe el proyecto a actualizar
+        $curProject = App::currentProject();
+        if (!array_key_exists($curProject, $projects)) {
+            echo json_encode(['error' => 'El proyecto no existe.']);
+            return;
+        }
+
+        $dirRenamed = false;
+
+        //Si cambia el código, actualizar la llave en projects y renombrar la carpeta del proyecto
+        if ($code !== $curProject) {
+            if (array_key_exists($code, $projects)) {
+                echo json_encode(['error' => 'Ya existe un proyecto con el código: ' . Post::code() . '.']);
+                return;
+            }
+
+            $dirRenamed = @rename('projects' . DS . $curProject, 'projects' . DS . $code);
+
+            if (!$dirRenamed) {
+                echo json_encode(['error' => 'No ha sido posible actualizar el nombre de la carpeta de trabajo del proyecto.']);
+                return;
+            }
+
+            $cfg->currentProject = $code;
+
+            $projects[$code] = $projects[$curProject];
+            unset($projects[$curProject]);
+        }
+
+        $project = &$projects[$code];
+
+        //Si cambia la ruta, actualizamos la cache
+        if ($project['root_path'] !== Post::root_path()) {
+            $project['updateCache'] = true;
+        }
+
+        $project['projectName'] = Post::projectName();
+        $project['root_path'] = Post::root_path();
+        $project['url'] = Post::url();
+        $project['zipFilename'] = Post::zipFilename();
+        $project['name'] = Post::name();
+        $project['version'] = Post::version();
+        $project['author'] = Post::author();
+        $project['link'] = Post::link();
+        $project['lastPath'] = '/admin';
+        $project['lastPathOpened'] = 0;
+
+        $cfg->projects = $projects;
+
+        $configUpdated = $cfg->update();
+
+        //Si no se puede actualizar, volver a poner el directorio del proyecto como estaba
+        if (!$configUpdated && $dirRenamed) {
+            @rename('projects' . DS . $code, 'projects' . DS . $curProject);
+        }
+
+        echo json_encode(['ok' => $configUpdated]);
     }
 
-    function ajax_checkURL() {
+    private function checkRoot($path): bool {
+        $path = rtrim($path, '\\/');
+
+        return is_dir($path) && is_dir($path . '/admin') && is_dir($path . '/catalog') && is_readable($path);
+    }
+
+    private function checkURL($url): bool {
         $curl = curl_init();
 
-        $url = trim(Post::url(), '/') . '/admin';
+        $url = trim($url, '/') . '/admin';
 
         if (substr($url, 0, 5) == 'https')
             curl_setopt($curl, CURLOPT_PORT, 443);
@@ -156,7 +257,15 @@ class Main {
 
         $cinfo = curl_getinfo($curl);
 
-        echo json_encode(['ok' => floor($cinfo['http_code'] / 100) === 2 || $cinfo['http_code'] === 301]);
+        return floor($cinfo['http_code'] / 100) === 2 || $cinfo['http_code'] === 301;
+    }
+
+    public function ajax_checkRoot() {
+        echo json_encode(['ok' => $this->checkRoot(Post::path())]);
+    }
+
+    public function ajax_checkURL() {
+        echo json_encode(['ok' => $this->checkURL(Post::url())]);
     }
 
     public function ajax_get_file() {

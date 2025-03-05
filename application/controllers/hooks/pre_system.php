@@ -23,7 +23,7 @@ class ConfigCheck {
             App::currentProject($key);
             App::project($cfg->projects[$key]);
 
-            define('OPENCART_URL', App::project()["URL"]);
+            define('OPENCART_URL', App::project()["url"]);
             define('SOURCE_ROOT_PATH', rtrim(App::project()['root_path'], '\\/') . DS);
 
             @include_once(SOURCE_ROOT_PATH . 'config.php');

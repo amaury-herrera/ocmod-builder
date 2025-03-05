@@ -7,12 +7,12 @@ $currentProjectIndex = $index = 0;
 
 $projects = [];
 if ($currentProject) {
-    foreach ($projectsCfg as $id => &$value) {
-        if ($currentProject == $id)
+    foreach ($projectsCfg as $code => &$value) {
+        if ($currentProject == $code)
             $currentProjectIndex = $index;
 
         $projects[] = [
-            'id' => $id,
+            'code' => $code,
             'name' => $value['projectName'],
         ];
 
@@ -68,73 +68,83 @@ Views::BeginBlock('content');
 
 <!--New project dialog contents-->
 <div id="newProject" class="d-none">
-    <div class="row">
-        <div class="col-6 col-lg-4">
-            <div class="form-group">
-                <label for="name">Nombre del proyecto</label>
-                <input type="text" class="form-control" name="projectName" id="name" placeholder="Nombre del proyecto" autocomplete="false"
-                       value="" data-rule="required_trim,regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
+    <div class="row d-none" id="reloadWarn">
+        <div class="col-12 text-info">
+            <div class="alert alert-info alert-dismissible"><i class="fa fa-info-circle"></i>
+                Se guardarán los archivos que no haya guardado y se recargará la página.
+                <button type="button" class="close pt-2" data-dismiss="alert">&times;</button>
             </div>
-            <div class="form-group">
-                <label for="root">Carpeta raíz de OpenCart</label>
-                <input type="text" class="form-control" name="root_path" id="root" placeholder="Carpeta raíz de OpenCart" value=""
-                       data-rule="required_trim,checkRoot">
-            </div>
+
         </div>
-        <div class="col-6 col-lg-8">
+    </div>
+    <div class="row">
+        <div class="col-12 col-lg-5">
+            <div class="form-group">
+                <label for="pname">Nombre del proyecto</label>
+                <input type="text" class="form-control" name="projectName" id="pname" placeholder="Nombre del proyecto" autocomplete="false"
+                       value="" data-rule="required_trim,without[<>]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
+            </div>
             <div class="form-group">
                 <label for="zipFilename">Nombre .ocmod.zip</label>
                 <input type="text" class="form-control" name="zipFilename" id="zipFilename" placeholder="Nombre del archivo .ocmod.zip"
                        autocomplete="false" value="" data-rule="required_trim,regexp[re]" data-re="/^[a-z0-9_-]{3,64}$/i">
             </div>
             <div class="form-group">
+                <label for="root">Carpeta raíz de OpenCart</label>
+                <input type="text" class="form-control" name="root_path" id="root" placeholder="Carpeta raíz de OpenCart" value=""
+                       data-rule="required_trim,checkRoot">
+            </div>
+            <div class="form-group">
                 <label for="url">URL de OpenCart</label>
                 <input type="text" class="form-control" name="url" id="url" placeholder="URL de OpenCart" value=""
-                    data-rule="required,url,regexp[re],checkURL" data-re="/^https?/", data-msg="||La URL debe ser http o https">
+                       data-rule="required,url,regexp[re],checkURL" data-re="/^https?/" , data-msg="||La URL debe ser http o https">
             </div>
         </div>
-    </div>
-    <div class="card card-dark">
-        <div class="card-header pl-2">Datos de archivo OCMod</div>
-        <div class="card-body pt-2 pb-0" style="white-space: nowrap; overflow: hidden">
+        <div class="col-12 col-lg-7">
+            <label>Datos de archivo OCMod</label>
+            <div class="card card-default mb-0">
+                <div class="card-body pt-2 pb-0" style="white-space: nowrap; overflow: hidden">
                 <pre class="d-inline p-0">
 &lt;?xml version="1.0" encoding="utf-8"?&gt;
 &lt;modification&gt;
   &lt;name&gt;</pre>
-            <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="name" placeholder="Nombre" data-tooltip-place="right"
-                       value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
-            </div>
-            <pre class="d-inline p-0" style="line-height: 1em">&lt;/name&gt;
+                    <div class="form-group d-inline-block mb-1">
+                        <input type="text" class="form-control form-control-sm" name="name" placeholder="Nombre" data-tooltip-place="right"
+                               value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
+                    </div>
+                    <pre class="d-inline p-0" style="line-height: 1em">&lt;/name&gt;
   &lt;code&gt;</pre>
-            <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="code" placeholder="Código" data-tooltip-place="right"
-                       value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[a-z_-]{3,64}$/">
-            </div>
-            <pre class="d-inline p-0">&lt;/code&gt;
+                    <div class="form-group d-inline-block mb-1">
+                        <input type="text" class="form-control form-control-sm" name="code" placeholder="Código" data-tooltip-place="right"
+                               value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[a-z_0-9-]{3,64}$/">
+                    </div>
+                    <pre class="d-inline p-0">&lt;/code&gt;
   &lt;version&gt;</pre>
-            <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="version" placeholder="Versión" data-tooltip-place="right"
-                       value="" data-rule="required_trim,maxlength[32],regexp[re]" data-re="/^[1-9][0-9]{0,3}\.(0|[1-9][0-9]{0,3})(\.(0|[1-9][0-9]{0,3}))?$/">
-            </div>
-            <pre class="d-inline p-0">&lt;/version&gt;
+                    <div class="form-group d-inline-block mb-1">
+                        <input type="text" class="form-control form-control-sm" name="version" placeholder="Versión" data-tooltip-place="right"
+                               value="" data-rule="required_trim,maxlength[32],regexp[re]"
+                               data-re="/^[1-9][0-9]{0,3}\.(0|[1-9][0-9]{0,3})(\.(0|[1-9][0-9]{0,3}))?$/">
+                    </div>
+                    <pre class="d-inline p-0">&lt;/version&gt;
   &lt;author&gt;</pre>
-            <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="author" placeholder="Autor" data-tooltip-place="right"
-                       value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
-            </div>
-            <pre class="d-inline p-0">&lt;/author&gt;
+                    <div class="form-group d-inline-block mb-1">
+                        <input type="text" class="form-control form-control-sm" name="author" placeholder="Autor" data-tooltip-place="right"
+                               value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
+                    </div>
+                    <pre class="d-inline p-0">&lt;/author&gt;
   &lt;link&gt;</pre>
-            <div class="form-group d-inline-block mb-1">
-                <input type="text" class="form-control form-control-sm" name="link" placeholder="Link" data-tooltip-place="right"
-                       value="" data-rule="maxlength[255],url">
-            </div>
-            <pre class="d-inline p-0">&lt;/link&gt;
+                    <div class="form-group d-inline-block mb-1">
+                        <input type="text" class="form-control form-control-sm" name="link" placeholder="Link" data-tooltip-place="right"
+                               value="" data-rule="maxlength[255],url">
+                    </div>
+                    <pre class="d-inline p-0">&lt;/link&gt;
 &lt;/modification>
                 </pre>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="row">
+    <div class="row" id="openProjectRow">
         <div class="col-12">
             <div class="form-group form-check mt-3 mb-0">
                 <input type="checkbox" class="form-check-input" id="openProj" value="1" checked>
@@ -301,7 +311,7 @@ Views::BeginBlock('content');
                                         isNew: $data.o() || $data.u(),
                                         isUpload: $data.u,
                                         disabled: !editable},
-                                        click: $root.editFileData">
+                                        click: $root.loadFileFromData">
                                         <div data-bind="text: n, attr: {title: $data.u() ? 'Nuevo' : ($data.o() ? 'Con cambios' : 'Sin cambios')}"></div>
                                         <button class="btn btn-sm btn-default fa fa-edit" title="Cambiar nombre"
                                                 data-bind="visible: $data.m() || $data.u(), click: $root.renameFile"></button>
@@ -309,9 +319,9 @@ Views::BeginBlock('content');
                                                 data-bind="visible: $data.m() || $data.u(), click: $root.deleteFile"></button>
                                     </a>
                                     <button type="button" class="btn btn-info btn-sm fa fa-exchange" title="Ver archivo modificado (Diff)"
-                                            data-bind="visible: editable && $data.m, click: function() { $root.editFile($data, 'diff'); }"></button>
+                                            data-bind="visible: editable && $data.m, click: function() { $root.loadFile($data, 'diff'); }"></button>
                                     <button type="button" class="btn btn-info btn-sm fa fa-pencil" title="Editar"
-                                            data-bind="click: function() { $root.editFile($data, $data.u() ? 'upload' : 'ocmod'); }, visible: editable"></button>
+                                            data-bind="click: function() { $root.loadFile($data, $data.u() ? 'upload' : 'ocmod'); }, visible: editable"></button>
                                 </li>
                             </ul>
                         </div>
@@ -333,7 +343,7 @@ Views::BeginBlock('content');
                                          style="max-height: max(50px, calc(100vh - 150px)); overflow-y: auto"
                                          data-bind="foreach: openedFiles">
                                         <a class="dropdown-item d-flex align-items-center" style="column-gap: 5px; border: solid 1px white"
-                                           data-bind="click: function() { $root.editFile($data); },
+                                           data-bind="click: function() { $root.loadFile($data); },
                                                 css: {'disabled bg-info': cur == $data, 'bg-light text-dark': cur!=$data}" href="#">
                                             <div class="flex-grow-1" data-bind="text: $data.path+'/'+$data.filename"></div>
                                             <div class="flex-grow-0 pl-2 fa" data-bind="class: $root.getActionIcon($data)"></div>
