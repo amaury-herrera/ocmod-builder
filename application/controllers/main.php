@@ -30,8 +30,7 @@ class Main {
         $projects[$curProj]['lastPathOpened'] = (int)Post::opened();
 
         $cfg->projects = $projects;
-
-        echo json_encode(['ok' => $cfg->update()]);
+        $cfg->update();
     }
 
     /**
@@ -42,8 +41,12 @@ class Main {
         $cfg = App::Config();
         $curProj = App::currentProject();
 
+        $files = Post::openedFiles();
+        if (empty($files))
+            $files = [];
+
         $projects = $cfg->projects;
-        $projects[$curProj]['openedFiles'] = Post::openedFiles();
+        $projects[$curProj]['openedFiles'] = $files;
         $projects[$curProj]['lastOpenedFile'] = (int)Post::lastOpenedFile();
 
         $cfg->projects = $projects;
@@ -98,15 +101,13 @@ class Main {
     public function ajax_openProject() {
         $cfg = App::Config();
         $projects = $cfg->projects;
-        if (array_key_exists(Post::projectCode(), $projects)) {
-            $cfg->currentProject = Post::projectCode();
-            $cfg->update();
 
-            echo json_encode(['ok' => true]);
-            return;
-        }
+        if (array_key_exists($code = Post::projectCode(), $projects)) {
+            $cfg->currentProject = $code;
 
-        echo json_encode(['error' => 'El proyecto solicitado no existe.']);
+            echo json_encode(['ok' => $cfg->update()]);
+        } else
+            echo json_encode(['error' => 'El proyecto solicitado no existe.']);
     }
 
     /**
@@ -114,9 +115,9 @@ class Main {
      * @return void
      */
     public function ajax_createProject() {
-        $code = strtolower(Post::code());
-
         $cfg = App::Config();
+
+        $code = strtolower(Post::code());
 
         $projects = $cfg->projects;
         if (!$projects) {
@@ -142,7 +143,7 @@ class Main {
             'lastPath' => '/admin',
             'lastPathOpened' => 0,
             'openedFiles' => [],
-            'lastOpenedFile' => ''
+            'lastOpenedFile' => -1
         ];
 
         $cfg->projects = $projects;
@@ -188,7 +189,6 @@ class Main {
             }
 
             $dirRenamed = @rename('projects' . DS . $curProject, 'projects' . DS . $code);
-
             if (!$dirRenamed) {
                 echo json_encode(['error' => 'No ha sido posible actualizar el nombre de la carpeta de trabajo del proyecto.']);
                 return;

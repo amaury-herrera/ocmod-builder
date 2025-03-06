@@ -521,7 +521,9 @@ class ControllerSample extends Controller {\n\
 
         xhr && xhr.abort();
 
-        xhr = $.post('main/get_files', {path: path, opened: (isFirstLoad ? projectData().lastPathOpened : leaf.opened()) ? 1 : 0},
+        const pd = projectData();
+
+        xhr = $.post('main/get_files', {path: path, opened: (isFirstLoad ? (pd ? pd.lastPathOpened || 0 : 0) : leaf.opened()) ? 1 : 0},
             function (d) {
                 xhr = null;
                 d.files.forEach(function (e) {
@@ -533,13 +535,16 @@ class ControllerSample extends Controller {\n\
                 t.fileList(d.files);
             }, 'json');
 
-        if (projectData().openedFiles.length === 0)
+        if (!pd || !pd.openedFiles || pd.openedFiles.length === 0)
             isFirstLoad = false;
     });
 
     if (originalTree.length > 0) {
-        findLeave(projectData().lastPath, true);
-        t.activeLeaf().c().length && t.activeLeaf().opened(projectData().lastPathOpened);
+        const pd = projectData();
+        if (pd) {
+            findLeave(pd.lastPath, true);
+            t.activeLeaf().c().length && t.activeLeaf().opened(pd.lastPathOpened);
+        }
     }
 
     $('.card.editor').delegate('button[id^="btnGo"]', 'click', null,
@@ -661,7 +666,8 @@ class ControllerSample extends Controller {\n\
     let saveCancelled = false,
         isClosingAll = false;
 
-    let execAfterCloseAllFunc = null;
+    let execAfterCloseAllFunc = null,
+        skipUpdateOpenedFiles = false;
 
     function closeNextFile() {
         if (isClosingAll) {
@@ -673,9 +679,15 @@ class ControllerSample extends Controller {\n\
                     execAfterCloseAllFunc();
 
                 execAfterCloseAllFunc = null;
+
+                if (skipUpdateOpenedFiles)
+                    skipUpdateOpenedFiles = false;
+                else
+                    updateOpenedFiles();
             } else
                 t.closeFile(t.openedFiles()[0]);
-        }
+        } else
+            updateOpenedFiles();
     }
 
     function setDiffContent(editorData, lang, content) {
@@ -787,8 +799,11 @@ class ControllerSample extends Controller {\n\
             openedFiles = t.openedFiles().map(function (ed, i) {
                 if (ed === t.currentEditor())
                     curIndex = i;
-                let csrPos = ed.editor.getSelection().cursor.getPosition();
-                return ed.action + '|' + csrPos.row + ',' + csrPos.column + '|' + ed.path + '/' + ed.filename;
+                const s = ed.editor.session,
+                    csrPos = ed.editor.getSelection().cursor.getPosition();
+                return ed.action +
+                    '|' + csrPos.row + ',' + csrPos.column + ',' + Math.floor(s.$scrollLeft) + ',' + Math.floor(s.$scrollTop) +
+                    '|' + ed.path + '/' + ed.filename;
             });
 
         doPost('main/saveOpenedFiles', {openedFiles: openedFiles, lastOpenedFile: curIndex}, null, {
@@ -952,13 +967,19 @@ class ControllerSample extends Controller {\n\
         execAfterCloseAllFunc = function () {
             doPost('main/openProject', {projectCode: project.code},
                 function (r) {
-                    if (!!r.ok)
+                    if (r.ok)
                         document.location.reload();
                     else
                         sysMsgs.show(r.error, __MSG_ERROR, true);
+                },
+                {
+                    failFn: function () {
+                        sysMsgs.show('No ha sido posible cambiar de proyecto.', __MSG_ERROR, true);
+                    }
                 })
         }
 
+        skipUpdateOpenedFiles = true;
         t.closeAll();
     }
 
@@ -2151,24 +2172,39 @@ class ControllerSample extends Controller {\n\
 
     enableNavButtons();
 
-    const projData = projectData(),
-        lastOpenedFileData = projData.lastOpenedFile >= 0 ? projData.openedFiles[projData.lastOpenedFile] : '';
+    if ('openedFiles' in projectData()) {
+        const dlg = getDlgContent('', '<div><label>Abriendo archivo...</label></div><div class="d-inline-block text-info" id="fname"></div><div id="file"></div>', null, {noButtons: true}),
+            projData = projectData(),
+            lastOpenedFileData = projData.lastOpenedFile >= 0 ? projData.openedFiles[projData.lastOpenedFile] : '';
 
-    function loadOpenedFiles() {
-        const fileData = projData.openedFiles.shift();
+        function loadOpenedFiles() {
+            if (projData.openedFiles) {
+                const fileData = projData.openedFiles.shift();
 
-        if (fileData) {
-            const fdata = fileData.split('|');
-            t.loadFile(fdata[2], fdata[0],
-                function (editorData) {
-                    if (editorData) {
-                        const cPos = fdata[1].split(',');
-                        editorData.editor.session.getSelection().cursor.setPosition(parseInt(cPos[0]), parseInt(cPos[1]));
-                    }
+                if (fileData) {
+                    const fdata = fileData.split('|');
 
-                    loadOpenedFiles();
-                });
-        } else {
+                    $('#file', dlg).removeClass().addClass('d-inline-block ml-3 ' + t.getActionIcon({action: fdata[0]}));
+                    $('#fname', dlg).text(fdata[2] + ' ');
+
+                    t.loadFile(fdata[2], fdata[0],
+                        function (editorData) {
+                            if (editorData) {
+                                const cPos = fdata[1].split(','),
+                                    sess = editorData.editor.session;
+                                sess.getSelection().cursor.setPosition(parseInt(cPos[0]), parseInt(cPos[1]));
+                                sess.setScrollLeft(parseInt(cPos[2]));
+                                sess.setScrollTop(parseInt(cPos[3]));
+                            }
+
+                            setTimeout(loadOpenedFiles, 100);
+                            // loadOpenedFiles();
+                        });
+
+                    return;
+                }
+            }
+
             isFirstLoad = false;
 
             //Buscar el último archivo activo y activarlo
@@ -2184,13 +2220,23 @@ class ControllerSample extends Controller {\n\
                         ed = t.openedFiles();
 
                     t.currentEditor(ed[0]);
+
+                    ed[0].editor.focus();
                 }
             }
-        }
-    }
 
-    if (projData.openedFiles)
-        loadOpenedFiles();
+            dlg.modal('hide');
+        }
+
+        if (projData.openedFiles && projData.openedFiles.length > 0) {
+            dlg.on('shown.bs.modal', function (e) {
+                loadOpenedFiles();
+            })
+
+            dlg.modal({keyboard: false, backdrop: 'static'});
+        } else
+            loadOpenedFiles();
+    }
 
     $('.dropdown-menu a.dropdown-toggle').on('click', function (e) {
         if (!$(this).next().hasClass('show')) {

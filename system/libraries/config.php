@@ -27,7 +27,8 @@ class ConfigManager implements Iterator, ArrayAccess {
     }
 
     public function update() {
-        $tmp = dirname($this->file) . '/tmp_' . microtime(true) . '_' . rand(1, 10000000) . '.tmp';
+        return file_put_contents($this->file, json_encode($this->data, JSON_PRETTY_PRINT)) !== false;
+        /*$tmp = dirname($this->file) . '/tmp_' . microtime(true) . '_' . rand(1, 10000000) . '.tmp';
 
         if (!file_exists($this->file) || @rename($this->file, $tmp)) {
             if (file_put_contents($this->file, json_encode($this->data, JSON_PRETTY_PRINT)) !== false) {
@@ -39,7 +40,7 @@ class ConfigManager implements Iterator, ArrayAccess {
             @rename($tmp, $this->file);
         }
 
-        return false;
+        return false;*/
     }
 
     public function exists($varName) {

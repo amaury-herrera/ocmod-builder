@@ -24,7 +24,7 @@ Views::BeginBlock('content');
 ?>
 
 <!--Editor options dialog contents-->
-<div class="d-none row" id="editorOptions">
+<div id="editorOptions" class="d-none row">
     <div class="col-4">
         <div class="form-group">
             <label for="theme">Tema</label>
@@ -80,28 +80,28 @@ Views::BeginBlock('content');
     <div class="row">
         <div class="col-12 col-lg-5">
             <div class="form-group">
-                <label for="pname">Nombre del proyecto</label>
+                <label class="m-0" for="pname">Nombre del proyecto</label>
                 <input type="text" class="form-control" name="projectName" id="pname" placeholder="Nombre del proyecto" autocomplete="false"
                        value="" data-rule="required_trim,without[<>]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
             </div>
             <div class="form-group">
-                <label for="zipFilename">Nombre .ocmod.zip</label>
+                <label class="m-0" for="zipFilename">Nombre .ocmod.zip</label>
                 <input type="text" class="form-control" name="zipFilename" id="zipFilename" placeholder="Nombre del archivo .ocmod.zip"
                        autocomplete="false" value="" data-rule="required_trim,regexp[re]" data-re="/^[a-z0-9_-]{3,64}$/i">
             </div>
             <div class="form-group">
-                <label for="root">Carpeta raíz de OpenCart</label>
+                <label class="m-0" for="root">Carpeta raíz de OpenCart</label>
                 <input type="text" class="form-control" name="root_path" id="root" placeholder="Carpeta raíz de OpenCart" value=""
                        data-rule="required_trim,checkRoot">
             </div>
             <div class="form-group">
-                <label for="url">URL de OpenCart</label>
+                <label class="m-0" for="url">URL de OpenCart</label>
                 <input type="text" class="form-control" name="url" id="url" placeholder="URL de OpenCart" value=""
                        data-rule="required,url,regexp[re],checkURL" data-re="/^https?/" , data-msg="||La URL debe ser http o https">
             </div>
         </div>
         <div class="col-12 col-lg-7">
-            <label>Datos de archivo OCMod</label>
+            <label class="m-0">Datos de archivo OCMod</label>
             <div class="card card-default mb-0">
                 <div class="card-body pt-2 pb-0" style="white-space: nowrap; overflow: hidden">
                 <pre class="d-inline p-0">

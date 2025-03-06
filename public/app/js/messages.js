@@ -56,7 +56,7 @@ function getDlgContent(title, content, buttons, opts) {
         (title ? '<div class="modal-header py-2">\
               <h4 class="modal-title lh-3 my-2">' + opts.icon + title + '</h4>' +
             (opts.closeButton ? '<button type="button" class="close no-focus py-2 mt-0" data-dismiss="modal" aria-label="Close">\
-                <span aria-hidden="true">&times;</span>\
+                <span aria-hidden-="true">&times;</span>\
               </button>' : '') +
             '</div>' : '') +
         (opts.noForm ? '' : '<form role="form" class="form">') +

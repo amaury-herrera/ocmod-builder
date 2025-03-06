@@ -20,11 +20,11 @@
             "lastPath": "\/admin\/language\/en-gb\/customer",
             "lastPathOpened": 0,
             "openedFiles": [
-                "orig|0,0|\/admin\/language\/en-gb\/customer\/customer.php",
-                "ocmod|6,12|\/admin\/language\/en-gb\/customer\/customer.php",
-                "diff|0,0|\/admin\/language\/en-gb\/customer\/customer.php"
+                "orig|0,0,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
+                "ocmod|4,35,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
+                "diff|0,0,0,0|\/admin\/language\/en-gb\/customer\/customer.php"
             ],
-            "lastOpenedFile": 0
+            "lastOpenedFile": 1
         },
         "client_order_history": {
             "projectName": "Historial de pedidos de cliente",
@@ -37,7 +37,9 @@
             "link": "",
             "updateCache": false,
             "lastPath": "\/admin",
-            "lastPathOpened": 0
+            "lastPathOpened": 0,
+            "openedFiles": [],
+            "lastOpenedFile": -1
         }
     }
 }
