@@ -1,5 +1,5 @@
 {
-    "theme": "vibrant_ink",
+    "theme": "monokai",
     "fontSize": 13,
     "softWraps": 1,
     "softTabs": 1,
@@ -17,14 +17,15 @@
             "author": "Amaury Herrera Brito",
             "link": "",
             "updateCache": false,
-            "lastPath": "\/admin\/language\/en-gb\/customer",
-            "lastPathOpened": 0,
+            "lastPath": "\/admin",
+            "lastPathOpened": 1,
             "openedFiles": [
+                "ocmod|3,14,0,0|\/admin\/config.php",
                 "orig|0,0,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
                 "ocmod|4,35,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
                 "diff|0,0,0,0|\/admin\/language\/en-gb\/customer\/customer.php"
             ],
-            "lastOpenedFile": 1
+            "lastOpenedFile": -1
         },
         "client_order_history": {
             "projectName": "Historial de pedidos de cliente",

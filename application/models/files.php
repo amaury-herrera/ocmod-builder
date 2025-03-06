@@ -265,7 +265,7 @@ class FilesModel {
         return 'No ha sido posible eliminar la carpeta.';
     }
 
-    function delTree($dir, $delRoot = false) {
+    public function delTree($dir, $delRoot = false) {
         if (($contents = @scandir($dir)) !== false) {
             $files = array_diff($contents, array('.', '..'));
 

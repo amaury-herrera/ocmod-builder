@@ -41,7 +41,7 @@ Views::BeginBlock('content');
             </div>
         </div>
         <div class="form-group">
-            <label for="tabSize">Ancho de tabulación</label>
+            <strong for="tabSize">Ancho de tabulación</strong>
             <div class="d-flex justify-content-between align-items-center border rounded rounded-lg" data-bind="foreach: tabSizes">
                 <button id="aa" type="button" class="btn p-1 btnTabSize flex-grow-1" style="width: 20%; height: 40px"
                         data-bind="text: $data, css: {'btn-dark': $data == $root.editorTabSize()},
@@ -101,7 +101,7 @@ Views::BeginBlock('content');
             </div>
         </div>
         <div class="col-12 col-lg-7">
-            <label class="m-0">Datos de archivo OCMod</label>
+            <strong class="m-0">Datos de archivo OCMod</strong>
             <div class="card card-default mb-0">
                 <div class="card-body pt-2 pb-0" style="white-space: nowrap; overflow: hidden">
                 <pre class="d-inline p-0">
@@ -110,7 +110,8 @@ Views::BeginBlock('content');
   &lt;name&gt;</pre>
                     <div class="form-group d-inline-block mb-1">
                         <input type="text" class="form-control form-control-sm" name="name" placeholder="Nombre" data-tooltip-place="right"
-                               value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
+                               value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i"
+                        autocomplete="true">
                     </div>
                     <pre class="d-inline p-0" style="line-height: 1em">&lt;/name&gt;
   &lt;code&gt;</pre>
@@ -190,6 +191,8 @@ Views::BeginBlock('content');
             <div class="dropdown-menu" aria-labelledby="mnuProj">
                 <a class="dropdown-item" href="#" data-bind="click: newProject">Crear nuevo proyecto...</a>
                 <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: updateProject">Actualizar datos...</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: deleteProject">Eliminar proyecto activo</a>
             </div>
         </li>
         <li class="nav-item dropdown">
@@ -201,6 +204,8 @@ Views::BeginBlock('content');
                 <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: clearModifications">Limpiar modificaciones</a>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: downloadZip">Descargar archivo ocmod.zip</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: showInstallXML">Mostrar install.xml</a>
             </div>
         </li>
         <li class="nav-item dropdown">

@@ -11,6 +11,14 @@ class OCMODModel {
     private $xml = '';
     public $errors = [];
 
+    public function getXML() {
+        return $this->xml;
+    }
+
+    public function getErrors() {
+        return $this->errors;
+    }
+
     /**
      * Procesa el contenido de un archivo en busca de bloques OCMOD.
      * @param $text
@@ -183,23 +191,9 @@ class OCMODModel {
         }
     }
 
-    public function createZip($zipFilename = '') {
+    public function generateXML() {
         $proj = App::project();
         $code = App::currentProject();
-
-        $zips = glob(PATH_TEMP . '*.*');
-        foreach ($zips as $zip)
-            @unlink($zip);
-
-        if ($zipFilename) {
-            if (substr($zipFilename, -10) != '.ocmod.zip')
-                $zipFilename .= '.ocmod.zip';
-            $zipFilename = PATH_TEMP . $zipFilename;
-        } else {
-            $zipFilename = tempnam(PATH_TEMP, 'tmp');
-            if ($zipFilename === false)
-                return false;
-        }
 
         $this->changedFiles = [];
         $this->errors = [];
@@ -222,6 +216,26 @@ class OCMODModel {
 
         $this->xml .= "
 </modification>";
+
+        return $this;
+    }
+
+    public function createZip($zipFilename = '') {
+        $zips = glob(PATH_TEMP . '*.*');
+        foreach ($zips as $zip)
+            @unlink($zip);
+
+        if ($zipFilename) {
+            if (substr($zipFilename, -10) != '.ocmod.zip')
+                $zipFilename .= '.ocmod.zip';
+            $zipFilename = PATH_TEMP . $zipFilename;
+        } else {
+            $zipFilename = tempnam(PATH_TEMP, 'tmp');
+            if ($zipFilename === false)
+                return false;
+        }
+
+        $this->generateXML();
 
         try {
             $zip = new ZipArchive();

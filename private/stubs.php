@@ -57,6 +57,8 @@ class _Files_class {
   
   public function delDir($relPath){}
   
+  public function delTree($dir, $delRoot = false){}
+  
   public function renDir($relPath, $newName){}
   
   public function renameFile($relPath, $filename, $newName){}
@@ -66,6 +68,10 @@ class _Files_class {
 
 class _OCMOD_class {
   public $errors = [];
+  
+  public function getXML(){}
+  
+  public function getErrors(){}
   /**
      * Procesa el contenido de un archivo en busca de bloques OCMOD.
      * @param $text
@@ -83,6 +89,8 @@ class _OCMOD_class {
   public function processFile($fileName): bool{
     return true;
   }
+  
+  public function generateXML(){}
   
   public function createZip($zipFilename = ''){}
 }

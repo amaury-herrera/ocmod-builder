@@ -305,7 +305,9 @@ class ControllerSample extends Controller {\n\
             return 'fa fa-exchange';
         if (data.action == 'upload')
             return 'fa fa-upload';
-        return 'orig-icon';
+        if (data.action == 'orig')
+            return 'orig-icon';
+        return '-';
     }
 
     t.OCMODed = ko.observable(false);
@@ -667,7 +669,7 @@ class ControllerSample extends Controller {\n\
         isClosingAll = false;
 
     let execAfterCloseAllFunc = null,
-        skipUpdateOpenedFiles = false;
+        skipUpdateStatus = false;
 
     function closeNextFile() {
         if (isClosingAll) {
@@ -680,14 +682,14 @@ class ControllerSample extends Controller {\n\
 
                 execAfterCloseAllFunc = null;
 
-                if (skipUpdateOpenedFiles)
-                    skipUpdateOpenedFiles = false;
+                if (skipUpdateStatus)
+                    skipUpdateStatus = false;
                 else
-                    updateOpenedFiles();
+                    updateStatus();
             } else
                 t.closeFile(t.openedFiles()[0]);
         } else
-            updateOpenedFiles();
+            updateStatus();
     }
 
     function setDiffContent(editorData, lang, content) {
@@ -794,17 +796,24 @@ class ControllerSample extends Controller {\n\
             }, 'La URL de OpenCart no es válida');
     }
 
-    function updateOpenedFiles() {
+    function updateStatus() {
         let curIndex = -1,
-            openedFiles = t.openedFiles().map(function (ed, i) {
-                if (ed === t.currentEditor())
-                    curIndex = i;
-                const s = ed.editor.session,
-                    csrPos = ed.editor.getSelection().cursor.getPosition();
-                return ed.action +
-                    '|' + csrPos.row + ',' + csrPos.column + ',' + Math.floor(s.$scrollLeft) + ',' + Math.floor(s.$scrollTop) +
-                    '|' + ed.path + '/' + ed.filename;
-            });
+            openedFiles = t.openedFiles()
+                .map(function (ed, i) {
+                    if (ed.action === 'install-xml')
+                        return '';
+
+                    if (ed === t.currentEditor())
+                        curIndex = i;
+                    const s = ed.editor.session,
+                        csrPos = ed.editor.getSelection().cursor.getPosition();
+                    return ed.action +
+                        '|' + csrPos.row + ',' + csrPos.column + ',' + Math.floor(s.$scrollLeft) + ',' + Math.floor(s.$scrollTop) +
+                        '|' + ed.path + '/' + ed.filename;
+                })
+                .filter(function (f) {
+                    return f.length > 0;
+                });
 
         doPost('main/saveOpenedFiles', {openedFiles: openedFiles, lastOpenedFile: curIndex}, null, {
             lock: false, failFn: function () {
@@ -839,8 +848,15 @@ class ControllerSample extends Controller {\n\
                                 function (r) {
                                     if (r.ok) {
                                         dlg.modal('hide');
-                                        if (isFirstProject || openAfterCreation.is(':checked'))
-                                            document.location.reload();
+                                        if (isFirstProject || openAfterCreation.is(':checked')) {
+                                            const dlg = getDlgContent('', '<strong>Preparando todo para abrir el proyecto...</strong>', null, {noButtons: true});
+
+                                            dlg.on('shown.bs.modal', function (e) {
+                                                document.location.reload();
+                                            });
+
+                                            dlg.modal({keyboard: false, backdrop: 'static'});
+                                        }
                                     } else {
                                         sysMsgs.show(r.error, __MSG_ERROR);
                                         onFail();
@@ -979,8 +995,52 @@ class ControllerSample extends Controller {\n\
                 })
         }
 
-        skipUpdateOpenedFiles = true;
+        skipUpdateStatus = true;
         t.closeAll();
+    }
+
+    t.deleteProject = function () {
+        showConfirm('Va a proceder a eliminar el proyecto:<div class="ml-3 mt-2"><strong>' + projectData().projectName + '</strong></div><br>' +
+            '¿Está seguro que desea eliminarlo?', {
+            ok: function () {
+                doPost('main/deleteProject', {code: t.currentProject().code},
+                    function (r) {
+                        if (r.ok) {
+                            document.location.reload();
+                        } else
+                            sysMsgs.show(r.error, __MSG_ERROR, true);
+                    },
+                    {
+                        failFn: function () {
+                            sysMsgs.show('No ha sido posible eliminar el proyecto.', __MSG_ERROR, true);
+                        }
+                    });
+            }
+        })
+    }
+
+    t.showInstallXML = function () {
+        function loadFile() {
+            t.loadFile('/install.xml', 'install-xml');
+        }
+
+        const someModified = t.openedFiles().some(function (ed) {
+            return ed.modified();
+        });
+
+        if (someModified) {
+            let dlg = showConfirm('Debe guardar todos los archivos modificados para obtener un contenido actualizado.<br><br>' +
+                '¿Desea guardar los archivos modificados antes de proceder?',
+                {
+                    ok: function () {
+                        t.saveAll(loadFile);
+                    },
+                    cancel: function () {
+                        dlg.modal('hide');
+                    }
+                }, btnYesCancel, true, true);
+        } else
+            loadFile();
     }
 
     t.loadFileFromData = function (fileData) {
@@ -1006,7 +1066,7 @@ class ControllerSample extends Controller {\n\
             t.currentEditor(filedata);
             filedata.editor.focus();
 
-            updateOpenedFiles();
+            updateStatus();
             return;
         }
 
@@ -1014,20 +1074,35 @@ class ControllerSample extends Controller {\n\
             ? filedata.substring(filedata.lastIndexOf('/') + 1)
             : filedata.n();
 
-        if (!t.isEditable(filename))
+        if (!t.isEditable(filename) && action !== 'install-xml')
             return;
+
+        let editorData = null,
+            found = false;
 
         //Find if the file is already opened
         for (let i = 0; i < of.length; i++) {
             let ed = of[i];
-            if (ed.path === t.curPath() && ed.filename === filename && ed.action === action) {
+
+            if (action === 'install-xml')
+                found = ed.filename === filename && ed.action === action;
+            else
+                found = ed.path === t.curPath() && ed.filename === filename && ed.action === action;
+
+            if (found) {
+                if (action === 'install-xml') {
+                    editorData = ed;
+                    break;
+                }
+
                 t.currentEditor(ed);
                 ed.editor.focus();
 
-                updateOpenedFiles();
+                updateStatus();
                 return;
             }
         }
+
         const
             file = typeof (filedata) === 'string'
                 ? filedata
@@ -1035,8 +1110,14 @@ class ControllerSample extends Controller {\n\
             filePath = typeof filedata === 'string'
                 ? filedata.substring(0, filedata.lastIndexOf('/'))
                 : t.curPath(),
-            ext = file.substring(file.lastIndexOf('.')).toLowerCase(),
-            lang = ext == '.php' ? 'php' : (ext == '.twig' ? 'twig' : (ext == '.js' ? 'javascript' : ''));
+            ext = file.substring(file.lastIndexOf('.') + 1).toLowerCase(),
+            langs = {
+                php: 'php',
+                twig: 'twig',
+                js: 'javascript',
+                xml: 'xml'
+            },
+            lang = ext in langs ? langs[ext] : ''/* ext == '.php' ? 'php' : (ext == '.twig' ? 'twig' : (ext == '.js' ? 'javascript' : ''))*/;
 
         function createEditor(content, isDiff) {
             editorData.ocmodCommentStart = lang == 'twig' ? '{#' : '/*';
@@ -1093,15 +1174,17 @@ class ControllerSample extends Controller {\n\
             enableNavButtons();
         }
 
-        let editorData = {
-            id: 'ed_' + Date.now(),
-            action: action,
-            path: filePath,
-            filename: filename,
-            lang: lang,
-            isEditableFile: false,
-            isUploadFile: false,
-            modified: ko.observable(false)
+        if (!editorData) {
+            editorData = {
+                id: 'ed_' + Date.now(),
+                action: action,
+                path: filePath,
+                filename: filename,
+                lang: lang,
+                isEditableFile: false,
+                isUploadFile: false,
+                modified: ko.observable(false)
+            }
         }
 
         //A file was just created
@@ -1124,10 +1207,22 @@ class ControllerSample extends Controller {\n\
 
         doPost('main/get_file', data, function (d) {
                 if ('content' in d) {
-                    createEditor(d.content, d.isDiff);
+                    if (found && action === 'install-xml') {
+                        editorData.editor.setValue(d.content);
+                        editorData.editor.gotoLine(0);
+                        editorData.editor.session.getUndoManager().reset();
+                        editorData.editor.focus();
+                        editorData.modified(false);
+                        editorData.editor.session.getSelection().clearSelection();
+                        editorData.editor.focus();
+
+                        t.currentEditor(editorData);
+                    } else {
+                        createEditor(d.content, d.isDiff);
+                    }
 
                     if (!isFirstLoad)
-                        updateOpenedFiles();
+                        updateStatus();
 
                     if (typeof (next) === 'function') {
                         setTimeout(function () {
@@ -2020,8 +2115,24 @@ class ControllerSample extends Controller {\n\
             readOnly: true
         });
 
+        let tout = null;
+
+        function updateStatusDebounce() {
+            if (!(isFirstLoad || tout)) {
+                tout = setTimeout(function () {
+                    tout = null;
+                    updateStatus();
+                }, 3000);
+            }
+        }
+
+        editor.session.on('changeScrollTop', updateStatusDebounce);
+        editor.session.on('changeScrollLeft', updateStatusDebounce);
+
         editor.session.on('changeSelection', function (delta) {
             let ed = t.currentEditor();
+
+            updateStatusDebounce();
 
             if (!ed.isEditableFile || ed.isUploadFile)
                 return;
@@ -2173,7 +2284,7 @@ class ControllerSample extends Controller {\n\
     enableNavButtons();
 
     if ('openedFiles' in projectData()) {
-        const dlg = getDlgContent('', '<div><label>Abriendo archivo...</label></div><div class="d-inline-block text-info" id="fname"></div><div id="file"></div>', null, {noButtons: true}),
+        const dlg = getDlgContent('', '<div><strong>Abriendo archivo...</strong></div><div class="d-inline-block text-info" id="fname"></div><div id="file"></div>', null, {noButtons: true}),
             projData = projectData(),
             lastOpenedFileData = projData.lastOpenedFile >= 0 ? projData.openedFiles[projData.lastOpenedFile] : '';
 

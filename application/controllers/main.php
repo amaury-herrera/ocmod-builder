@@ -7,6 +7,36 @@ class Main {
         Views::Render('main');
     }
 
+    private function checkRoot($path): bool {
+        $path = rtrim($path, '\\/');
+
+        return is_dir($path) && is_dir($path . '/admin') && is_dir($path . '/catalog') && is_readable($path);
+    }
+
+    private function checkURL($url): bool {
+        $curl = curl_init();
+
+        $url = trim($url, '/') . '/admin';
+
+        if (substr($url, 0, 5) == 'https')
+            curl_setopt($curl, CURLOPT_PORT, 443);
+
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        curl_setopt($curl, CURLINFO_HEADER_OUT, true);
+        curl_setopt($curl, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_FORBID_REUSE, false);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+        curl_exec($curl);
+
+        $cinfo = curl_getinfo($curl);
+
+        return floor($cinfo['http_code'] / 100) === 2 || $cinfo['http_code'] === 301;
+    }
+
     /**
      * Recrea la caché
      * @return void
@@ -125,6 +155,9 @@ class Main {
             $cfg->currentProject = $code;
         }
 
+        if ((int)Post::openProj())
+            $cfg->currentProject = $code;
+
         if (array_key_exists($code, $projects)) {
             echo json_encode(['error' => 'Ya existe un proyecto con el código: ' . Post::code() . '.']);
             return;
@@ -230,34 +263,31 @@ class Main {
         echo json_encode(['ok' => $configUpdated]);
     }
 
-    private function checkRoot($path): bool {
-        $path = rtrim($path, '\\/');
+    public function ajax_deleteProject() {
+        $code = strtolower(Post::code());
 
-        return is_dir($path) && is_dir($path . '/admin') && is_dir($path . '/catalog') && is_readable($path);
-    }
+        $cfg = App::Config();
 
-    private function checkURL($url): bool {
-        $curl = curl_init();
+        $projects = $cfg->projects;
 
-        $url = trim($url, '/') . '/admin';
+        //Verificar que existe el proyecto a eliminar
+        if (!array_key_exists($code, $projects)) {
+            echo json_encode(['error' => 'El proyecto no existe.']);
+            return;
+        }
 
-        if (substr($url, 0, 5) == 'https')
-            curl_setopt($curl, CURLOPT_PORT, 443);
+        unset($projects[$code]);
 
-        curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_HEADER, false);
-        curl_setopt($curl, CURLINFO_HEADER_OUT, true);
-        curl_setopt($curl, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($curl, CURLOPT_FORBID_REUSE, false);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        $cfg->projects = $projects;
 
-        curl_exec($curl);
+        $configUpdated = $cfg->update();
 
-        $cinfo = curl_getinfo($curl);
+        //Si se puede actualizar, eliminar la carpeta del proyecto
+        if ($configUpdated) {
+            MODEL::Files()->delTree(MODEL::Files()->normalizePath(/*APP_ROOT .*/ 'projects' . DS . $code), true);
+        }
 
-        return floor($cinfo['http_code'] / 100) === 2 || $cinfo['http_code'] === 301;
+        echo json_encode(['ok' => $configUpdated]);
     }
 
     public function ajax_checkRoot() {
@@ -276,6 +306,20 @@ class Main {
             : SOURCE_ROOT_PATH . $file;
 
         switch (Post::action()) {
+            case 'install-xml': //Install.xml
+                $modelInstance = MODEL::OCMOD()->generateXML();
+                $xml = $modelInstance->getXML();
+                $errors = $modelInstance->getErrors();
+                $errorList = '';
+                if ($errors) {
+                    $errorList = "<!--\n";
+                    $errorList .= implode("\n", $errors);
+                    $errorList .= "-->\n\n";
+                }
+
+                echo json_encode(['content' => $errorList . $xml, 'isDiff' => false]);
+                return;
+
             case 'orig': //Archivo original
                 $srcFilename = SOURCE_ROOT_PATH . $file;
                 if (file_exists($srcFilename))

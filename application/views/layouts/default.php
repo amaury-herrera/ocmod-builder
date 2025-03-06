@@ -19,6 +19,7 @@
     <script type="application/javascript" src="public/third_party/ace/mode-php.js"></script>
     <script type="application/javascript" src="public/third_party/ace/mode-twig.js"></script>
     <script type="application/javascript" src="public/third_party/ace/mode-javascript.js"></script>
+    <script type="application/javascript" src="public/third_party/ace/mode-xml.js"></script>
     <script type="application/javascript" src="public/app/js/messages.js"></script>
     <script type="application/javascript" src="public/app/js/validation.js"></script>
     <?php
