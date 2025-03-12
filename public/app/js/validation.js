@@ -701,146 +701,149 @@ Validator.prototype.clear = function (elem) {
 Validator.prototype.validate = function (elem) {
     let t = this;
 
-    let res = true;
+    return new Promise(function (resolve, reject) {
+        let res = true;
 
-    t.refreshControls(elem);
+        t.refreshControls(elem);
 
-    const promises = [];
+        let promises = [];
 
-    if (elem) {
-        if (typeof (elem) === 'string')
-            elem = $(elem);
+        if (elem) {
+            if (typeof (elem) === 'string')
+                elem = $(elem);
 
-        if (elem instanceof jQuery) {
-            if (elem.length === 0)
-                return false;
+            if (elem instanceof jQuery) {
+                if (elem.length === 0)
+                    return false;
 
-            var elems = elem.get();
+                var elems = elem.get();
 
-            elem = [];
-            for (var i in t.elements) {
-                var el = t.elements[i];
-                if (elems.indexOf(el.e[0]) >= 0) {
-                    elem.push(el);
-                    break;
+                elem = [];
+                for (var i in t.elements) {
+                    var el = t.elements[i];
+                    if (elems.indexOf(el.e[0]) >= 0) {
+                        elem.push(el);
+                        break;
+                    }
                 }
-            }
 
-            if (elem.length === 0)
-                return false;
-        } else
-            elem = [elem];
-    }
-
-    t.suffixIndex = 0;
-    t.summary = [];
-    var processedNames = [];
-
-    $.each(elem ? elem : t.elements, function (i, d) {
-        t.currentElement = d.e;
-        d.error = null;
-
-        var name = t.getElementName(d.e[0]);
-        if (d.e.is(':disabled')) {
-            d.p.removeClass(t.errorClasses);
-            d.e.removeClass(t.errorClasses);
-            d.e.unbind('.myEvents');
-            return;
+                if (elem.length === 0)
+                    return false;
+            } else
+                elem = [elem];
         }
 
-        if (processedNames.indexOf(name) >= 0)
-            return;
+        t.suffixIndex = 0;
+        t.summary = [];
+        var processedNames = [];
 
-        processedNames.push(name);
+        $.each(elem ? elem : t.elements, function (i, d) {
+            t.currentElement = d.e;
+            d.error = null;
 
-        var val = t._elemValue(d.e[0]);
-
-        if (d.r.indexOf('trim') >= 0)
-            val = val.trim();
-
-        function showError() {
-            if (d.error === true)
-                d.error = false;
-
-            if (d.error === d.lastError)
-                return true;
-
-            if (d.error)
-                t.showError(d);
-            else {
+            var name = t.getElementName(d.e[0]);
+            if (d.e.is(':disabled')) {
                 d.p.removeClass(t.errorClasses);
                 d.e.removeClass(t.errorClasses);
                 d.e.unbind('.myEvents');
-
-                d.ttel.tooltip('dispose');
+                return;
             }
 
-            d.lastError = d.error;
-        }
+            if (processedNames.indexOf(name) >= 0)
+                return;
 
-        if ((d.r[0] === 'required' || d.r[0] === 'required_trim')
-            || d.r[0].indexOf('ifchecked') === 0
-            || d.r[0].indexOf('force_evaluate') >= 0//=== 0
-            //|| d.r[0].indexOf('ifselectedvalue') === 0
-            //|| d.r[0].indexOf('ifselectedindex') === 0
-            || val !== '') {
-            $.each(d.r, function (ri, rule) {
+            processedNames.push(name);
+
+            var val = t._elemValue(d.e[0]);
+
+            if (d.r.indexOf('trim') >= 0)
+                val = val.trim();
+
+            function showError() {
+                if (d.error === true)
+                    d.error = false;
+
+                if (d.error === d.lastError)
+                    return true;
+
                 if (d.error)
-                    return;
+                    t.showError(d);
+                else {
+                    d.p.removeClass(t.errorClasses);
+                    d.e.removeClass(t.errorClasses);
+                    d.e.unbind('.myEvents');
 
-                let match = rule.match(/^([a-z]?[a-z0-9_]*)[\s]*(\[(.*)\])?$/i);
-                if (match && t[rule = match[1]]) {
-                    var params = (match[3] || '').split(';');
+                    d.ttel.tooltip('dispose');
+                }
 
-                    params.unshift(val, d.e);
+                d.lastError = d.error;
+            }
 
-                    function check(retVal, isPromise) {
-                        if (retVal === null) { //Si devuelve null se pasa por alto el control
-                            d.error = true;
-                            return;
+            if ((d.r[0] === 'required' || d.r[0] === 'required_trim')
+                || d.r[0].indexOf('ifchecked') === 0
+                || d.r[0].indexOf('force_evaluate') >= 0//=== 0
+                //|| d.r[0].indexOf('ifselectedvalue') === 0
+                //|| d.r[0].indexOf('ifselectedindex') === 0
+                || val !== '') {
+                $.each(d.r, function (ri, rule) {
+                    if (d.error)
+                        return;
+
+                    let match = rule.match(/^([a-z]?[a-z0-9_]*)[\s]*(\[(.*)\])?$/i);
+                    if (match && t[rule = match[1]]) {
+                        var params = (match[3] || '').split(';');
+
+                        params.unshift(val, d.e);
+
+                        function check(retVal, isPromise) {
+                            if (retVal === null) { //Si devuelve null se pasa por alto el control
+                                d.error = true;
+                                return;
+                            }
+
+                            if (retVal === false) {
+                                res = false;
+                                var i = 2, msg = t._messages[rule];
+                                if (typeof (msg) == 'function')
+                                    msg = msg();
+                                d.error = (d.m[ri] || msg || 'No válido').replace(/%/g, function () {
+                                    return params[i++] || '';
+                                });
+                                var lab = d.e.data('label');
+                                if (lab)
+                                    t.summary.push({label: lab, error: d.error});
+
+                                isPromise && showError();
+                            }
                         }
 
-                        if (retVal === false) {
-                            res = false;
-                            var i = 2, msg = t._messages[rule];
-                            if (typeof (msg) == 'function')
-                                msg = msg();
-                            d.error = (d.m[ri] || msg || 'No válido').replace(/%/g, function () {
-                                return params[i++] || '';
+                        var retValue = t[rule].apply(t, params);
+
+                        if (retValue instanceof Promise) {
+                            promises.push(retValue);
+                            retValue.then(function (v) {
+                                !v && check(v, true);
                             });
-                            var lab = d.e.data('label');
-                            if (lab)
-                                t.summary.push({label: lab, error: d.error});
-
-                            isPromise && showError();
-                        }
-                    }
-
-                    var retValue = t[rule].apply(t, params);
-
-                    if (retValue instanceof Promise) {
-                        promises.push(retValue);
-                        retValue.then(function (v) {
-                            !v && check(v, true);
-                        });
+                        } else
+                            check(retValue, false);
                     } else
-                        check(retValue, false);
-                } else
-                    console.log('Regla desconocida o mal formada:', rule);
-            });
-        }
+                        console.log('Regla desconocida o mal formada:', rule);
+                });
+            }
 
-        if (showError(d))
-            return;
-    });
+            if (showError(d))
+                return;
+        });
 
-    return promises.length === 0
-        ? res
-        : new Promise(function (resolve, reject) {
+        if (promises.length === 0) {
+            resolve(res);
+            return res;
+        } else {
             Promise.all(promises).then(function () {
                 resolve(res);
             }).catch(function (error) {
                 reject(error);
             });
-        });
+        }
+    });
 }

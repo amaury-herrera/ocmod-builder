@@ -1,6 +1,5 @@
 <?php
 
-//print_r( $_SERVER);
 class Main {
     public function index() {
         MODEL::Cache()->recreateIfNeeded();
@@ -163,6 +162,15 @@ class Main {
             return;
         }
 
+        $newProjectName = Post::projectName();
+        $otherProject = array_filter($projects, function ($project) use ($code, $newProjectName) {
+            return $project['projectName'] === $newProjectName;
+        });
+        if ($otherProject) {
+            echo json_encode(['error' => 'Ya existe un proyecto con el nombre: ' . $newProjectName . '.']);
+            return;
+        }
+
         $projects[$code] = [
             'projectName' => Post::projectName(),
             'root_path' => Post::root_path(),
@@ -179,6 +187,225 @@ class Main {
             'lastOpenedFile' => -1
         ];
 
+        $cfg->projects = $projects;
+
+        echo json_encode(['ok' => $cfg->update()]);
+    }
+
+    /**
+     * Crea un nuevo proyecto desde un archivo install.xml y lo establece como activo si es el primero
+     * @return void
+     */
+    public function ajax_createProjectFromXML() {
+        $rootPath = Post::root_path();
+        if (!$this->checkRoot($rootPath)) {
+            echo json_encode(['error' => 'La raíz de OpenCart especificada no es válida.']);
+            return;
+        }
+
+        $ocURL = Post::url();
+        if (!$this->checkURL($ocURL)) {
+            echo json_encode(['error' => 'La URL de OpenCart especificada no es válida.']);
+            return;
+        }
+
+        $xml = simplexml_load_string(Post::content());
+
+        if ($xml === false) {
+            echo json_encode(['error' => 'No ha sido posible parsear el documento XML.']);
+            return;
+        }
+
+        $requiredNodes = ['name', 'code', 'version', 'author'];
+        foreach ($requiredNodes as $nodeName) {
+            if (count($xml->$nodeName) != 1) {
+                echo json_encode(['error' => "Hay más de una etiqueta <strong>&lt;{$nodeName}&gt;."]);
+                return;
+            }
+        }
+
+        $code = (string)$xml->code[0];
+        $name = (string)$xml->name[0];
+        $version = (string)$xml->version[0];
+        $author = (string)$xml->author[0];
+        $link = (string)$xml->link[0];
+
+        $cfg = App::Config();
+
+        $projects = $cfg->projects;
+        if (!$projects) {
+            $projects = [];
+            $cfg->currentProject = $code;
+        }
+
+        if ((int)Post::openProj())
+            $cfg->currentProject = $code;
+
+        if (array_key_exists($code, $projects)) {
+            echo json_encode(['error' => 'Ya existe un proyecto con el código: ' . Post::code() . '.']);
+            return;
+        }
+
+        //Verificar que no exista otro proyecto con igual nombre
+        $newProjectName = Post::projectName();
+        $otherProject = array_filter($projects, function ($project) use ($code, $newProjectName) {
+            return $project['projectName'] === $newProjectName;
+        });
+        if ($otherProject) {
+            echo json_encode(['error' => 'Ya existe un proyecto con el nombre: ' . $newProjectName . '.']);
+            return;
+        }
+
+        //Crear la carpeta ocmod, las demás se crean cuando se abra el proyecto
+        if (!@mkdir('projects' . DS . $code . DS . 'ocmod', 0777, true)) {
+            echo json_encode(['error' => 'No ha sido posible preparar el entorno para el nuevo proyecto.']);
+            return;
+        }
+
+        $blocks = [
+            'php' => "/*<OCMOD>*/
+/*<search[{searchAttr}]>[{searchContent}]</search>*/
+/*<add[{addAttr}]>
+*/[{addContent}]
+/*</add>*/
+/*</OCMOD>*/
+",
+            'js' => "/*<OCMOD>*/
+/*<search[{searchAttr}]>[{searchContent}]</search>*/
+/*<add[{addAttr}]>*/
+[{addContent}]
+/*</add>*/
+/*</OCMOD>*/
+",
+            'twig' => "{#<OCMOD>#}
+{#<search[{searchAttr}]>[{searchContent}]</search>#}
+{#<add[{addAttr}]>#}
+[{addContent}]
+{#</add>#}
+{#</OCMOD>#}
+",
+        ];
+
+        //Crear cada archivo agregando los bloques OCMOD
+        $error = false;
+        $fileList = [];
+        foreach ($xml->file as $file) {
+            $path = trim((string)$file['path'], '\\/');
+            $fileList[] = $path;
+
+            $origFilePath = MODEL::Files()->normalizePath(SOURCE_ROOT_PATH . $path);
+            if (!file_exists($origFilePath)) {
+                echo json_encode(['error' => "El archivo: {$path} no existe en la carpeta de OpenCart especificada."]);
+                $error = true;
+                break;
+            }
+
+            $destFilePath = MODEL::Files()->normalizePath('projects' . DS . $code . DS . 'ocmod' . DS . $path);
+
+            $fContent = file_get_contents($origFilePath);
+            if ($fContent === false) {
+                echo json_encode(['error' => "No ha sido posible acceder al archivo: {$path}."]);
+                $error = true;
+                break;
+            }
+
+            $fileName = basename($origFilePath);
+            $lastDotPos = strrpos($fileName, '.');
+            $fileType = $lastDotPos > 0 ? substr($fileName, $lastDotPos + 1) : '';
+
+            if (!in_array($fileType, ['php', 'js', 'twig'])) {
+                echo json_encode(['error' => "El archivo {$path} no tiene una extensión válida (.php, .js o .twig)."]);
+                $error = true;
+                break;
+            }
+
+            //system/{engine,library}/{action,loader,config,language}*.php
+            //system/engine/action.php|system/engine/loader.php|system/library/config.php|system/library/language.php
+            $OCMODBlocks = [];
+            foreach ($file->operation as $operation) {
+                $block = $blocks[$fileType];
+                $searchNode = $operation->search;
+                $addNode = $operation->add;
+
+                $searchAttrs = [];
+                if ($sRegex = (string)$searchNode['regex'])
+                    $searchAttrs[] = "regex=\"{$sRegex}\"";
+                if ($sRegex) {
+                    if ($sLimit = (string)$searchNode['limit'])
+                        $searchAttrs[] = "limit=\"{$sLimit}\"";
+                } else {
+                    if ($sIndex = (string)$searchNode['index'])
+                        $searchAttrs[] = "index=\"{$sIndex}\"";
+                    if ($sTrim = (string)$searchNode['trim'])
+                        $searchAttrs[] = "trim=\"{$sTrim}\"";
+                }
+
+                $searchContent = (string)$searchNode;
+
+                $addAttrs = [];
+                if ($aTrim = (string)$addNode['trim'])
+                    $addAttrs[] = "trim=\"{$aTrim}\"";
+                if (!$sRegex && $aPosition = (string)$addNode['position'])
+                    $addAttrs[] = "position=\"{$aPosition}\"";
+                if ($aOffset = (string)$addNode['offset'])
+                    $addAttrs[] = "offset=\"{$aOffset}\"";
+
+                $addContent = (string)$addNode;
+
+                $block = str_replace(
+                    [
+                        '[{searchAttr}]',
+                        '[{searchContent}]',
+                        '[{addAttr}]',
+                        '[{addContent}]'
+                    ],
+                    [
+                        rtrim(' ' . implode(' ', $searchAttrs)),
+                        $searchContent,
+                        rtrim(' ' . implode(' ', $addAttrs)),
+                        $addContent
+                    ], $block);
+
+                $OCMODBlocks[] = $block;
+            }
+
+            $fileDir = dirname($destFilePath);
+            if (!is_dir($fileDir)) {
+                if (!@mkdir($fileDir, 0777, true)) {
+                    echo json_encode(['error' => "No se pudo crear el archivo {$path} en la carpeta \"ocmod\' del proyecto."]);
+                    $error = true;
+                    break;
+                }
+            }
+
+            if (file_put_contents($destFilePath, implode('', $OCMODBlocks) . $fContent) === false) {
+                echo json_encode(['error' => "No se pudo crear el archivo {$path} en la carpeta \"ocmod\' del proyecto."]);
+                $error = true;
+                break;
+            }
+        }
+        //$error = true; //TODO: Quitar
+        if ($error) {
+            MODEL::Files()->delTree('projects' . DS . $code, true);
+        }
+
+        $projects[$code] = [
+            'projectName' => $newProjectName,
+            'root_path' => $rootPath,
+            'url' => $ocURL,
+            'zipFilename' => Post::zipFilename(),
+            'name' => $name,
+            'version' => $version,
+            'author' => $author,
+            'link' => $link,
+            'updateCache' => true,
+            'lastPath' => '/admin',
+            'lastPathOpened' => 0,
+            'openedFiles' => [],
+            'lastOpenedFile' => -1
+        ];
+
+        return;
         $cfg->projects = $projects;
 
         echo json_encode(['ok' => $cfg->update()]);
@@ -213,6 +440,18 @@ class Main {
         }
 
         $dirRenamed = false;
+
+        //Si cambia el nombre del proyecto, comprobar que no exista otro proyecto diferente con igual nombre
+        $newProjectName = Post::projectName();
+        if ($newProjectName != $projects[$curProject]['projectName']) {
+            $otherProject = array_filter($projects, function ($project) use ($code, $newProjectName) {
+                return $project['code'] !== $code && $project['projectName'] === $newProjectName;
+            });
+            if ($otherProject) {
+                echo json_encode(['error' => 'Ya existe un proyecto con el nombre: ' . $newProjectName . '.']);
+                return;
+            }
+        }
 
         //Si cambia el código, actualizar la llave en projects y renombrar la carpeta del proyecto
         if ($code !== $curProject) {
@@ -298,12 +537,12 @@ class Main {
         echo json_encode(['ok' => $this->checkURL(Post::url())]);
     }
 
+    public function ajax_checkFileExists() {
+        echo json_encode(['ok' => file_exists(SOURCE_ROOT_PATH . MODEL::Files()->normalizePath(trim(Post::filePath(), '\\/')))]);
+    }
+
     public function ajax_get_file() {
         $file = trim(str_replace(['\\', '/'], DS, Post::file()), '\\/');
-
-        $srcFilename = Post::action() == 'upload'
-            ? PATH_UPLOAD . $file
-            : SOURCE_ROOT_PATH . $file;
 
         switch (Post::action()) {
             case 'install-xml': //Install.xml
@@ -352,8 +591,10 @@ class Main {
             case 'diff':
                 $srcFilename = SOURCE_ROOT_PATH . $file;
                 $modFilename = trim(DIR_STORAGE, '/\\') . DS . 'modification' . DS . $file;
-                if (!file_exists($modFilename))
-                    $modFilename = $srcFilename;
+                if (!file_exists($modFilename)) {
+                    echo json_encode(['content' => false, 'isDiff' => false]);
+                    return;
+                }
 
                 [$isDiff, $lines] = MODEL::Diff()->calculateDiff($srcFilename, $modFilename);
 

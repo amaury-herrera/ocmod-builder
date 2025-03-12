@@ -15,7 +15,7 @@ body {
     --line-numbers-background: #494949;
     --line-numbers-border: gray;
 
-    --removed-background-color: red;
+    --removed-background-color: rgba(255, 0, 0, 0.61);
     --removed-selected-background-color: rgba(181, 8, 8, 0.5);
 
     --added-background-color: green;
@@ -128,6 +128,19 @@ span.a, small.a {
 
 .list-group-item {
     padding: 5px 10px;
+}
+
+.asterisk:before {
+    content: "\f0c7";/*106*/
+    position: absolute;
+    font-size: 9pt;
+    margin-left: -14px;
+    margin-top: -4px;
+    font-family: FontAwesome;
+}
+
+.ace_active-line {
+    opacity: .7;
 }
 
 .ace_added, .added {

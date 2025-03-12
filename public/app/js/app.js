@@ -299,15 +299,20 @@ class ControllerSample extends Controller {\n\
     }
 
     t.getActionIcon = function (data) {
-        if (data.action == 'ocmod')
-            return 'fa fa-pencil';
-        if (data.action == 'diff')
-            return 'fa fa-exchange';
-        if (data.action == 'upload')
-            return 'fa fa-upload';
-        if (data.action == 'orig')
-            return 'orig-icon';
-        return '-';
+        switch (data.action) {
+            case 'ocmod':
+                return 'fa fa-pencil';
+            case 'diff':
+                return 'fa fa-exchange';
+            case 'upload':
+                return 'fa fa-upload';
+            case 'orig':
+                return 'orig-icon';
+            case 'install-xml':
+                return 'fa fa-tags';
+            default:
+                return '-';
+        }
     }
 
     t.OCMODed = ko.observable(false);
@@ -816,8 +821,14 @@ class ControllerSample extends Controller {\n\
                 });
 
         doPost('main/saveOpenedFiles', {openedFiles: openedFiles, lastOpenedFile: curIndex}, null, {
-            lock: false, failFn: function () {
+            lock: false, clearMsgs: false, failFn: function () {
             }
+        });
+    }
+
+    function someFileModified() {
+        return t.openedFiles().some(function (ed) {
+            return ed.modified();
         });
     }
 
@@ -837,6 +848,9 @@ class ControllerSample extends Controller {\n\
 
                     validator.validate()
                         .then(function (ok) {
+                            if (!ok)
+                                return;
+
                             $('button', dlg).attr('disabled', 'disabled');
 
                             function onFail() {
@@ -885,6 +899,251 @@ class ControllerSample extends Controller {\n\
 
         const isFirstProject = t.projects().length === 0;
         const openAfterCreation = $('input[type="checkbox"]', dlg).attr({disabled: isFirstProject ? 'disabled' : null});
+    }
+
+    /**
+     * Crea un nuevo proyecto a partir de un archivo install.xml y lo activa si es el primero
+     */
+    t.newProjectFromXML = function () {
+        const content = $('#newProject').clone().removeClass('d-none').attr('id', null),
+            isFirstProject = t.projects().length === 0;
+
+        $('#ocmodData', content).remove();
+        $('#openFilesDiv', content).removeClass('d-none');
+        $('#installXML', content).removeClass('d-none');
+        $('#btnSelect', content).click(function (e) {
+            $('#fileInput', content).val('');
+            $('#fileInput', content).click();
+        })
+        $('#fileInput', content).on('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    let prom = new Promise(function (resolve, reject) {
+                        let promises = [];
+
+                        if (e.target.result)
+                            validator.clear($('textarea', dlg));
+
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(e.target.result, "application/xml");
+
+                        const parserError = xmlDoc.getElementsByTagName("parsererror");
+                        if (parserError.length > 0) {
+                            resolve('No ha sido posible parsear el contenido del archivo.');
+                            return;
+                        }
+
+                        const nodes = xmlDoc.getElementsByTagName('modification');
+                        if (nodes.length !== 1) {
+                            resolve('Debe haber una única etiqueta <strong>&lt;modification&gt;</strong>.');
+                            return;
+                        }
+
+                        const modificationNode = nodes[0];
+
+                        const requiredNodes = ['name', 'code', 'version', 'author'];
+                        for (let i = 0; i < requiredNodes.length; i++) {
+                            let nodeName = requiredNodes[i];
+                            let node = modificationNode.getElementsByTagName(nodeName);
+                            if (node.length !== 1) {
+                                resolve('Debe haber una única etiqueta <strong>&lt;' + nodeName + '&gt;</strong> dentro de la etiqueta &lt;modification&gt;.');
+                                return;
+                            }
+
+                            if (!node[0].textContent.trim()) {
+                                resolve('La etiqueta &lt;' + nodeName + '&gt; debe existir y no puede estar vacía.');
+                                return;
+                            }
+                        }
+
+                        let result = true;
+
+                        const files = modificationNode.getElementsByTagName('file');
+                        for (let f = 0; f < files.length; f++) {
+                            let file = files[f];
+
+                            if (!file.getAttribute('path')) {
+                                resolve('Cada etiqueta <strong>&lt;file&gt;</strong> debe tener un atributo "<strong>path</strong>" no vacío.');
+                                return;
+                            }
+
+                            const operations = file.getElementsByTagName('operation');
+                            if (operations.length === 0) {
+                                resolve('Cada etiqueta <strong>&lt;file&gt;</strong> debe tener al menos una etiqueta <strong>&lt;operation&gt;</strong>.');
+                                return;
+                            }
+
+                            for (let o = 0; o < operations.length; o++) {
+                                let operation = operations[o];
+
+                                if (operation.getElementsByTagName('search').length !== 1 ||
+                                    operation.getElementsByTagName('add').length !== 1) {
+                                    resolve('Cada etiqueta <strong>&lt;operation&gt;</strong> debe tener una sola etiqueta ' +
+                                        '<strong>&lt;search&gt;</strong> y otra <strong>&lt;add&gt;</strong>.');
+                                    return;
+                                }
+                            }
+
+                            const reqData = new FormData();
+                            reqData.append('filePath', file.getAttribute('path'));
+
+                            promises.push((async function () {
+                                const resp = await fetch('main/checkFileExists',
+                                    {
+                                        method: 'POST',
+                                        body: reqData,
+                                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                                    });
+
+                                if (resp.ok) {
+                                    const ret = await resp.json();
+                                    if (!ret.ok) {
+                                        sysMsgs.show('El archivo: <strong>' + file.getAttribute('path') + '</strong> no existe.', __MSG_ERROR, false, -1);
+                                    }
+                                    result &&= ret.ok;
+                                }
+                            })());
+                        }
+
+                        if (promises.length > 0) {
+                            Promise
+                                .all(promises)
+                                .then(function () {
+                                    resolve(result);
+                                })
+                                .catch(function (error) {
+                                    reject(error);
+                                });
+                        } else
+                            resolve(true);
+                    });
+
+                    prom.then(function (r) {
+                        if (r) {
+                            editor.setValue(e.target.result);
+                            editor.gotoLine(0);
+                            editor.session.getSelection().clearSelection();
+                            editor.session.getUndoManager().reset();
+                            editor.focus();
+                        }
+                    });
+                }
+
+                reader.readAsText(file);
+            }
+        });
+
+        let editor, validator;
+
+        const dlg = showConfirm(content,
+            {
+                ok: function (dlg) {
+                    validator.validate()
+                        .then(function (vResult) {
+                            if (typeof vResult === 'string') {
+                                sysMsgs.show(r.ok, __MSG_ERROR, true);
+                                return;
+                            }
+
+                            if (!vResult)
+                                return;
+
+                            $('button', dlg).attr('disabled', 'disabled');
+
+                            function onFail() {
+                                $('button', dlg).attr('disabled', null);
+                                dlg.okFailed();
+                            }
+
+                            const values = validator.getValues();
+
+                            delete values.TEXTAREA_textarea0;
+
+                            values.content = editor.getValue();
+
+                            doPost('main/createProjectFromXML', values,
+                                function (r) {
+                                    if (r.ok) {
+                                        dlg.modal('hide');
+                                        if (isFirstProject || openAfterCreation.is(':checked')) {
+                                            const dlg = getDlgContent('', '<strong>Preparando todo para abrir el proyecto...</strong>', null, {noButtons: true});
+
+                                            dlg.on('shown.bs.modal', function (e) {
+                                                document.location.reload();
+                                            });
+
+                                            dlg.modal({keyboard: false, backdrop: 'static'});
+                                        }
+                                    } else {
+                                        sysMsgs.show(r.error, __MSG_ERROR);
+                                        onFail();
+                                    }
+                                },
+                                {
+                                    failFn: function () {
+                                        sysMsgs.show('No ha sido posible crear el proyecto.', __MSG_ERROR);
+                                        onFail();
+                                    }
+                                }
+                            );
+                        })
+
+                    return true; //Impedir que se cierre el diálogo
+                }
+            },
+            btnOkCancel,
+            true,
+            true,
+            'Crear proyecto desde XML',
+            {
+                icon: '-',
+                size: 'lg',
+                dontShow: true
+            });
+
+        const openAfterCreation = $('input[type="checkbox"]', dlg).attr({disabled: isFirstProject ? 'disabled' : null});
+
+        dlg.on('show.bs.modal', function () {
+            editor = ace.edit(
+                $('#editorBox', content)[0],
+                {
+                    theme: 'ace/theme/' + t.editorTheme(),
+                    fontSize: "12pt",
+                    tabSize: 4,
+                    showLineNumbers: false,
+                    showGutter: false,
+                    wrap: false,
+                    useSoftTabs: false,
+                    showPrintMargin: false,
+                    readOnly: true,
+                    mode: 'ace/mode/xml'
+                }
+            );
+
+            $('textarea.ace_text-input', dlg).attr(
+                {
+                    'data-rule': 'required_trim,checkXML',
+                    'data-tooltipat': 'editorBox',
+                });
+
+            validator = new Validator($('form', dlg), null, true, {});
+
+            validator.addRule('checkXML',
+                function (v) {
+                    const xml = editor.getValue();
+                    if (!xml)
+                        return false;
+
+                    return true;
+                }, 'El XML no es válido.');
+
+            addCheckRootRule(validator);
+            addCheckURLRule(validator);
+        });
+
+        dlg.modal({keyboard: true, backdrop: 'static'});
     }
 
     /**
@@ -1024,21 +1283,18 @@ class ControllerSample extends Controller {\n\
             t.loadFile('/install.xml', 'install-xml');
         }
 
-        const someModified = t.openedFiles().some(function (ed) {
-            return ed.modified();
-        });
-
-        if (someModified) {
-            let dlg = showConfirm('Debe guardar todos los archivos modificados para obtener un contenido actualizado.<br><br>' +
+        if (someFileModified()) {
+            let dlg = showConfirm('<strong>Al menos uno de los archivos abiertos tiene cambios que no han sido guardados.</strong><br><br>' +
                 '¿Desea guardar los archivos modificados antes de proceder?',
                 {
                     ok: function () {
                         t.saveAll(loadFile);
                     },
+                    no: loadFile,
                     cancel: function () {
                         dlg.modal('hide');
                     }
-                }, btnYesCancel, true, true);
+                }, btnYesNoCancel, true, true);
         } else
             loadFile();
     }
@@ -1248,62 +1504,79 @@ class ControllerSample extends Controller {\n\
      * Descarga el archivo .ocmod.zip con los cambios, si los hay
      */
     t.downloadZip = function () {
-        fetch('ocmod/createZip')
-            .then(function (response) {
-                if (!response.ok) {
-                    sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
-                    return;
-                }
-                return response.json();
-            })
-            .then(function (dlData) {
-                if ('error' in dlData) {
-                    sysMsgs.show(dlData.error, __MSG_ERROR, true);
-                    return;
-                }
-
-                if (dlData.errors.length > 0) {
-                    sysMsgs.show('<div>Se han encontrado errores:</div><ul><li>' + dlData.errors.join('</li><li>') + '</li></ul>', __MSG_ERROR);
-                }
-
-                const reqData = new FormData();
-                reqData.append('filename', dlData.dlFilename);
-
-                //Solicitar el archivo a descargar
-                fetch('ocmod/downloadZip', {method: 'POST', body: reqData})
-                    .then(function (response) {
-                        if (!response.ok) {
-                            sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
-                            return;
-                        }
-                        return response.blob();
-                    })
-                    .then(function (blob) {
-                        if (blob.size === 0) {
-                            sysMsgs.show('No ha sido posible descargar el archivo.', __MSG_ERROR);
-                            return;
-                        }
-                        const
-                            fileBlob = new Blob([blob], {type: 'application/zip'}),
-                            url = window.URL.createObjectURL(fileBlob),
-                            a = $('<a style="display: none">')
-                                .attr('href', url)
-                                .attr('download', dlData.filename);
-
-                        $('body').append(a);
-                        a[0].click();
-                        window.URL.revokeObjectURL(url);
-                        a.remove();
-                    })
-                    .catch(function (error) {
+        function doDownload() {
+            fetch('ocmod/createZip')
+                .then(function (response) {
+                    if (!response.ok) {
                         sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
-                        console.error('Error:', error);
-                    });
-            })
-            .catch(function (error) {
-                sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
-                console.error('Error:', error);
-            });
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(function (dlData) {
+                    if ('error' in dlData) {
+                        sysMsgs.show(dlData.error, __MSG_ERROR, true);
+                        return;
+                    }
+
+                    if (dlData.errors.length > 0) {
+                        sysMsgs.show('<div>Se han encontrado errores:</div><ul><li>' + dlData.errors.join('</li><li>') + '</li></ul>', __MSG_ERROR);
+                    }
+
+                    const reqData = new FormData();
+                    reqData.append('filename', dlData.dlFilename);
+
+                    //Solicitar el archivo a descargar
+                    fetch('ocmod/downloadZip', {method: 'POST', body: reqData})
+                        .then(function (response) {
+                            if (!response.ok) {
+                                sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
+                                return;
+                            }
+                            return response.blob();
+                        })
+                        .then(function (blob) {
+                            if (blob.size === 0) {
+                                sysMsgs.show('No ha sido posible descargar el archivo.', __MSG_ERROR);
+                                return;
+                            }
+                            const
+                                fileBlob = new Blob([blob], {type: 'application/zip'}),
+                                url = window.URL.createObjectURL(fileBlob),
+                                a = $('<a style="display: none">')
+                                    .attr('href', url)
+                                    .attr('download', dlData.filename);
+
+                            $('body').append(a);
+                            a[0].click();
+                            window.URL.revokeObjectURL(url);
+                            a.remove();
+                        })
+                        .catch(function (error) {
+                            sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
+                            console.error('Error:', error);
+                        });
+                })
+                .catch(function (error) {
+                    sysMsgs.show('No se ha obtenido una respuesta válida del servidor.', __MSG_ERROR);
+                    console.error('Error:', error);
+                });
+        }
+
+        if (someFileModified()) {
+            let dlg = showConfirm('<strong>Al menos uno de los archivos abiertos tiene cambios que no han sido guardados.</strong><br><br>' +
+                '¿Desea guardar los archivos modificados antes de proceder?',
+                {
+                    ok: function () {
+                        t.saveAll(doDownload);
+                    },
+                    no: doDownload,
+                    cancel: function () {
+                        dlg.modal('hide');
+                    }
+                }, btnYesNoCancel, true, true);
+        } else
+            doDownload();
     }
 
     /**
@@ -1312,58 +1585,93 @@ class ControllerSample extends Controller {\n\
      * - Regarga los archivos diff abiertos
      */
     t.install = function () {
-        doPost('ocmod/install', {}, function (r) {
-            if ('error' in r)
-                sysMsgs.show(r.error, __MSG_ERROR, true);
-            else {
-                t.activeLeaf(t.activeLeaf());
+        function doInstall() {
+            const dlg = getDlgContent('', '<div><strong>Instalando cambios...</strong></div><div class="d-inline-block text-info" id="fname"></div><div id="file"></div>', null, {noButtons: true});
 
-                //Actualizar los editores con diff
+            dlg.on('hidden.bs.modal', function (e) {
+                const ed = t.currentEditor();
+                ed.editor.renderer.updateFull();
+                ed.editor.focus();
+            });
 
-                const diffFiles = t.openedFiles()
-                    .filter(function (f) {
-                        return f.action === 'diff';
-                    });
+            dlg.on('shown.bs.modal', function (e) {
+                doPost('ocmod/install', {}, function (r) {
+                    dlg.modal('hide');
 
-                function loadNextFile() {
-                    if (diffFiles.length === 0)
-                        return;
+                    if ('error' in r)
+                        sysMsgs.show(r.error, __MSG_ERROR, true);
+                    else {
+                        t.activeLeaf(t.activeLeaf());
 
-                    let ed = diffFiles.shift(),
-                        data = {
-                            file: ed.path + '/' + ed.filename,
-                            action: 'diff'
-                        };
+                        //Actualizar los editores con diff
+                        const diffFiles = t.openedFiles()
+                            .filter(function (f) {
+                                return f.action === 'diff';
+                            });
 
-                    doPost('main/get_file', data,
-                        function (d) {
-                            if ('content' in d) {
-                                try {
-                                    setDiffContent(ed, ed.lang, d.content);
-                                    ed.modified(false);
-                                    ed.editor.gotoLine(0);
-                                    ed.editor.session.getSelection().clearSelection();
-                                    ed.editor.session.getUndoManager().reset();
-                                    if (t.currentEditor() == ed) {
-                                        ed.editor.renderer.updateFull();
-                                        ed.editor.focus();
+                        function loadNextFile() {
+                            if (diffFiles.length === 0)
+                                return;
+
+                            let ed = diffFiles.shift(),
+                                data = {
+                                    file: ed.path + '/' + ed.filename,
+                                    action: 'diff'
+                                };
+
+                            doPost('main/get_file', data,
+                                function (d) {
+                                    if ('content' in d) {
+                                        if (d.content === false) { //El archivo modificado no existe, cerrar el editor
+                                            t.closeFile(ed, true);
+                                            return;
+                                        }
+
+                                        try {
+                                            let markers = ed.editor.session.getMarkers();
+                                            for (let id in markers)
+                                                ed.editor.session.removeMarker(id);
+
+                                            setDiffContent(ed, ed.lang, d.content);
+                                            ed.modified(false);
+                                            ed.editor.gotoLine(0);
+                                            ed.editor.session.getSelection().clearSelection();
+                                            ed.editor.session.getUndoManager().reset();
+                                        } catch (e) {
+                                        }
                                     }
-                                } catch (e) {
-                                }
-                            }
-                        },
-                        {
-                            lock: false,
-                            clearMsgs: false,
-                            always: loadNextFile
-                        });
-                }
+                                },
+                                {
+                                    lock: false,
+                                    clearMsgs: false,
+                                    always: loadNextFile
+                                });
+                        }
 
-                loadNextFile();
+                        loadNextFile();
 
-                sysMsgs.show('Los cambios han sido instalados con éxito.', __MSG_SUCCESS, true);
-            }
-        });
+                        sysMsgs.show('Los cambios han sido instalados con éxito.', __MSG_SUCCESS, true);
+                    }
+                });
+            });
+
+            dlg.modal({keyboard: false, backdrop: 'static'});
+        }
+
+        if (someFileModified()) {
+            let dlg = showConfirm('<strong>Al menos uno de los archivos abiertos tiene cambios que no han sido guardados.</strong><br><br>' +
+                '¿Desea guardar los archivos modificados antes de proceder?',
+                {
+                    ok: function () {
+                        t.saveAll(doInstall);
+                    },
+                    no: doInstall,
+                    cancel: function () {
+                        dlg.modal('hide');
+                    }
+                }, btnYesNoCancel, true, true);
+        } else
+            doInstall();
     }
 
     /**
@@ -1403,13 +1711,14 @@ class ControllerSample extends Controller {\n\
         const path = t.curPath();
         let leaf = t.activeLeaf();
 
+        const fdesc =
+            '<div class="d-flex align-items-center bg-white p-2 rounded-lg">' +
+            '  <div style="overflow: hidden; text-overflow: ellipsis">' + ed.path + '/' + ed.filename + '&nbsp;' + '</div>' +
+            '  <div><span class="' + t.getActionIcon(ed) + '"></span></div>' +
+            '</div>';
+
         doPost('main/saveFile', {path: ed.path, filename: ed.filename, action: ed.action, content: ed.editor.getValue()},
             function (r) {
-                const fdesc = '<div class="d-flex align-items-center bg-white p-2 rounded-lg">' +
-                    '<div>' + ed.path + '/' + ed.filename + '&nbsp;' + '</div>' +
-                    '<div><span class="' + t.getActionIcon(ed) + '"></span></div>' +
-                    '</div>';
-
                 if (r.error) {
                     sysMsgs.show(r.error + '<br>' + fdesc, __MSG_ERROR, true, 5000);
 
@@ -1831,7 +2140,7 @@ class ControllerSample extends Controller {\n\
             selRange = range || selection.getRange(),
             resultRange = new ace.Range(-1, -1, -1, -1);
 
-        if (selRange.start.row === selRange.end.row && selRange.start.column === selRange.end.column) {
+        if (selRange.start.row === selRange.end.row /*&& selRange.start.column === selRange.end.column*/) {
             resultRange.emptySelection = selRange.emptySelection = true;
 
             if (ed.editor.getReadOnly()) {
@@ -1875,6 +2184,7 @@ class ControllerSample extends Controller {\n\
 
     /*
     Alt-O: Insertar bloque OCMOD
+    Alt-P: Alterna la etiqueta <path_override>
     Shift-Del: Eliminar bloque activo
     Ctrl-Shift-Up: Subir bloque activo
     Ctrl-Shift-Down: Bajar bloque activo
@@ -1883,16 +2193,82 @@ class ControllerSample extends Controller {\n\
     Ctrl-Shift-V: Pega el bloque copiado/cortado
     */
 
+    ace.require("ace/ext/language_tools");
+
+    let initializeCommands = true;
+
     function initializeEditor(ed) {
         let editor = ed.editor;
+
+        editor.setOptions({
+            dragEnabled: false,
+            enableBasicAutocompletion: true,
+            enableSnippets: true,
+            enableLiveAutocompletion: false
+        });
 
         if (ed.action === 'ocmod')
             editor.setOption("enableMultiselect", false); //No permitir múltiples cursores en archivos ocmod
 
         ed.editor.session.setMode("ace/mode/" + ed.lang, highlightFactory(ed));
 
-        editor.commands.byName["undo"].readOnly = true;
-        editor.commands.byName["redo"].readOnly = true;
+        const cmds = editor.commands.byName;
+        cmds.undo.readOnly = true;
+        cmds.redo.readOnly = true;
+
+        if (initializeCommands) {
+            initializeCommands = false;
+
+            //No permitir estos comandos
+            ['togglerecording', 'openCommandPalette', 'openCommandPallete', 'replace']
+                .forEach(function (cmd) {
+                    cmds[cmd].exec = function () {
+                    }
+                })
+
+            const ocmodBlockRE = /^[ \t]*(?:{#|\/\*|<!--)<OCMOD>(?:#}|\*\/|-->)\s*^(?:\s*(?:{#|\/\*|<!--)?[ \t]*<(?<path>path_override)\s*path=(['"]).*\2[ \t]*\/>[ \t]*(?:#}|\*\/|-->)?[\r\n])?(^\s*(?:{#|\/\*|<!--)?[ \t]*<(search|add)(>| [^>\r\n]*>)[ \t]*(?:#}|\*\/|-->)?[\r\n](.*)^\s*(?:{#|\/\*|<!--)?[ \t]*<\/\4>[ \t]*(?:#}|\*\/|-->)?[\r\n]){2}^\s*(?:{#|\/\*|<!--)<\/OCMOD>(?:#}|\*\/|-->)$/ims;
+
+            //Siempre que se ejecuten los siguientes comandos, chequear que no rompe la integridad del bloque OCMOD
+            [
+                'backspace', 'insertstring', 'del', 'cut', 'paste', 'transposeletters', 'splitline', 'togglecomment',
+                'toggleBlockComment', 'splitline', 'splitSelectionIntoLines', 'sortlines',
+                'removeline', 'removewordleft', 'removewordright', 'removetolinestarthard', 'removetolinestart',
+                'removetolineendhard', 'removetolineend',
+                'copylinesdown', 'copylinesup', 'duplicateSelection', 'movelinesdown', 'movelinesup'
+            ].forEach(
+                function (cmd) {
+                    const oldExec = cmds[cmd].exec;
+                    cmds[cmd].exec = function (editor, args) {
+                        let sess = editor.session,
+                            ed = t.openedFiles().filter(function (e) {
+                                return e.editor === editor
+                            });
+
+                        if (!ed)
+                            return;
+
+                        ed = ed[0];
+
+                        // console.log(cmd, cmds)
+                        const modified = ed.modified();
+
+                        oldExec(editor, args);
+
+                        const range = getCurrentOCMODRange(),
+                            lines = range.lines ? range.lines.join('\n') : '';
+
+                        if (!ocmodBlockRE.test(lines)) {
+                            editor.undo();
+
+                            sess.$undoManager.$redoStack.pop();     //No permitir el redo
+                            sess.getSelection().clearSelection();
+
+                            ed.modified(modified);
+                        }
+                    }
+                }
+            );
+        }
 
         function indentAndInsertBlock(lines, row, indentRow) {
             let indentLine;
@@ -1937,6 +2313,47 @@ class ControllerSample extends Controller {\n\
         }
 
         editor.commands.addCommand({
+            name: "togglePathOverride",
+            bindKey: {win: "Alt-P", mac: "Command-Option-P"}, // Asignar la combinación de teclas Alt+P
+            exec: function (editor) {
+                let ed = t.currentEditor();
+
+                if (!ed.isEditableFile || ed.isUploadFile)
+                    return;
+
+                let selection = editor.getSelection(),
+                    range = getCurrentOCMODRange();
+
+                if (range.start.row >= 0) {
+                    let re = /^\s*({#|\/\*|<!--)?[ \t]*<path_override\s*path=(['"]).*\2\/>[ \t]*(#}|\*\/|-->)?\s*/ims,
+                        match = range.lines.join('\n').match(re);
+
+                    if (match) {
+                        let row = range.start.row + 1;
+                        while (!editor.session.getLine(row).match(/^\s*({#|\/\*|<!--)?[ \t]*<path_override\s*path=(['"]).*\2\/>[ \t]*(#}|\*\/|-->)?$/is))
+                            row++;
+                        while (!editor.session.getLine(row + 1).trim())
+                            row++;
+
+                        editor.session.doc.removeFullLines(range.start.row + 1, row);
+                        selection.cursor.setPosition(range.start.row + 1, 0);
+                        selection.clearSelection();
+                    } else {
+                        indentAndInsertBlock(
+                            [
+                                ed.ocmodCommentStart + '<path_override path=""/>' + ed.ocmodCommentEnd,
+                            ],
+                            range.start.row + 1, Math.max(0, range.start.row));
+
+                        selection.cursor.setPosition(range.start.row + 1, editor.session.getLine(range.start.row + 1).length - ed.ocmodCommentEnd.length - 2);
+                        selection.clearSelection();
+                    }
+                }
+            },
+            readOnly: true // Permitir la edición
+        });
+
+        editor.commands.addCommand({
             name: "insertOCMODBlock",
             bindKey: {win: "Alt-O", mac: "Command-Option-O"}, // Asignar la combinación de teclas Alt+O
             exec: function (editor) {
@@ -1962,7 +2379,9 @@ class ControllerSample extends Controller {\n\
 
                     let lines = [
                         ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd,
-                        ed.ocmodCommentStart + '<search trim="false"></search>' + ed.ocmodCommentEnd,
+                        ed.ocmodCommentStart + '<search trim="false">' + ed.ocmodCommentEnd,
+                        '',
+                        ed.ocmodCommentStart + '</search>' + ed.ocmodCommentEnd,
                         ed.ocmodCommentStart + '<add position="before">' + ed.ocmodCommentEnd,
                         '',
                         ed.ocmodCommentStart + '</add>' + ed.ocmodCommentEnd,
@@ -1971,7 +2390,7 @@ class ControllerSample extends Controller {\n\
 
                     indentAndInsertBlock(lines, range.start.row, Math.max(0, range.start.row - 1));
 
-                    selection.cursor.setPosition(range.start.row + 1, editor.session.getLine(range.start.row + 1).length - 10);
+                    selection.cursor.setPosition(range.start.row + 2, editor.session.getLine(range.start.row + 2).length + 1);
                     selection.clearSelection();
                 }
             },
@@ -2139,13 +2558,14 @@ class ControllerSample extends Controller {\n\
 
             let selection = editor.getSelection();
 
-            if (selection.ranges.length > 0) {
+            if (selection.ranges.length > 0) { //No permitir selecciones múltiples
                 editor.setReadOnly(true);
                 return;
             }
 
             let cursorPosition = editor.getCursorPosition();
 
+            //Permitir escribir solamente dentro del bloque
             let row = cursorPosition.row;
             while (row >= 0) {
                 let line = editor.session.getLine(row);
@@ -2179,8 +2599,9 @@ class ControllerSample extends Controller {\n\
                 return;
             }
 
-            //Verificar que la selección no contenga etiquetas OCMOD
+            //Verificar que la selección no contenga etiquetas OCMOD, search o add
             let range = selection.getRange();
+            //, emptySelection = range.start.row === range.end.row && range.start.column === range.end.column;
 
             row = range.start.row;
             while (row <= range.end.row) {
@@ -2193,10 +2614,24 @@ class ControllerSample extends Controller {\n\
                     }
                 }
 
-                if (editor.session.getLine(row).toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0) {
+                let line = editor.session.getLine(row);
+
+                if (line.toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0) {
                     editor.setReadOnly(true);
                     return;
                 }
+
+                /*if (!emptySelection) {
+                    if (/^\s*({#|\/\*|\/\/|<!--)?<(search|add)/.test(line) && range.start.row !== range.end.row) {
+                        editor.setReadOnly(true);
+                        return;
+                    }
+
+                    if (/^\s*({#|\/\*|\/\/|<!--)?<\/(search|add)>/.test(line)) {
+                        editor.setReadOnly(true);
+                        return;
+                    }
+                }*/
 
                 row++;
             }
@@ -2204,7 +2639,7 @@ class ControllerSample extends Controller {\n\
 
         editor.session.on('change', function (e, v) {
             ed.modified(true);
-        })
+        });
     };
 
     const langsLoaded = [];

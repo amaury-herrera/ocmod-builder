@@ -82,25 +82,32 @@ Views::BeginBlock('content');
             <div class="form-group">
                 <label class="m-0" for="pname">Nombre del proyecto</label>
                 <input type="text" class="form-control" name="projectName" id="pname" placeholder="Nombre del proyecto" autocomplete="false"
-                       value="" data-rule="required_trim,without[<>]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i">
+                       value="" data-rule="required_trim,without[<>]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i" data-tooltip-place="right">
             </div>
             <div class="form-group">
                 <label class="m-0" for="zipFilename">Nombre .ocmod.zip</label>
                 <input type="text" class="form-control" name="zipFilename" id="zipFilename" placeholder="Nombre del archivo .ocmod.zip"
-                       autocomplete="false" value="" data-rule="required_trim,regexp[re]" data-re="/^[a-z0-9_-]{3,64}$/i">
+                       autocomplete="false" value="" data-rule="required_trim,regexp[re]" data-re="/^[a-z0-9_-]{3,64}$/i" data-tooltip-place="right">
             </div>
             <div class="form-group">
                 <label class="m-0" for="root">Carpeta raíz de OpenCart</label>
                 <input type="text" class="form-control" name="root_path" id="root" placeholder="Carpeta raíz de OpenCart" value=""
-                       data-rule="required_trim,checkRoot">
+                       data-rule="required_trim,checkRoot" data-tooltip-place="right">
             </div>
             <div class="form-group">
                 <label class="m-0" for="url">URL de OpenCart</label>
                 <input type="text" class="form-control" name="url" id="url" placeholder="URL de OpenCart" value=""
-                       data-rule="required,url,regexp[re],checkURL" data-re="/^https?/" , data-msg="||La URL debe ser http o https">
+                       data-rule="required,url,regexp[re],checkURL" data-re="/^https?/" data-msg="||La URL debe ser http o https" data-tooltip-place="right">
             </div>
         </div>
-        <div class="col-12 col-lg-7">
+        <div class="col-12 col-lg-7 d-none w-100" id="installXML">
+            <div id="editorBox" style="max-height: 400px; height: calc(100vh - 400px)"></div>
+            <div class="text-right">
+                <button id="btnSelect" class="btn btn-info mt-2" type="button">Seleccionar archivo</button>
+                <input type="file" id="fileInput" class="d-none">
+            </div>
+        </div>
+        <div class="col-12 col-lg-7" id="ocmodData">
             <strong class="m-0">Datos de archivo OCMod</strong>
             <div class="card card-default mb-0">
                 <div class="card-body pt-2 pb-0" style="white-space: nowrap; overflow: hidden">
@@ -111,7 +118,7 @@ Views::BeginBlock('content');
                     <div class="form-group d-inline-block mb-1">
                         <input type="text" class="form-control form-control-sm" name="name" placeholder="Nombre" data-tooltip-place="right"
                                value="" data-rule="required_trim,maxlength[64],regexp[re]" data-re="/^[\w\sáéíóúÁÉÍÓÚñÑüÜ]{3,64}$/i"
-                        autocomplete="true">
+                               autocomplete="true">
                     </div>
                     <pre class="d-inline p-0" style="line-height: 1em">&lt;/name&gt;
   &lt;code&gt;</pre>
@@ -150,6 +157,10 @@ Views::BeginBlock('content');
             <div class="form-group form-check mt-3 mb-0">
                 <input type="checkbox" class="form-check-input" id="openProj" value="1" checked>
                 <label class="form-check-label" for="openProj">Abrir proyecto luego de ser creado</label>
+            </div>
+            <div class="form-group form-check mt-3 mb-0 d-none" id="openFilesDiv">
+                <input type="checkbox" class="form-check-input" id="openFiles" value="1" checked>
+                <label class="form-check-label" for="openFiles">Abrir archivos incluidos en el XML</label>
             </div>
         </div>
     </div>
@@ -190,6 +201,7 @@ Views::BeginBlock('content');
                aria-expanded="false">Proyecto</a>
             <div class="dropdown-menu" aria-labelledby="mnuProj">
                 <a class="dropdown-item" href="#" data-bind="click: newProject">Crear nuevo proyecto...</a>
+                <a class="dropdown-item" href="#" data-bind="click: newProjectFromXML">Crear nuevo proyecto desde <strong>install.xml</strong>...</a>
                 <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: updateProject">Actualizar datos...</a>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: deleteProject">Eliminar proyecto activo</a>
@@ -201,11 +213,13 @@ Views::BeginBlock('content');
             <div class="dropdown-menu" aria-labelledby="mnuOcmod"
                  data-bind="let: {noFileOpened: openedFiles().length == 0, saveDisabled: openedFiles().length == 0 || (currentEditor() && !currentEditor().modified())}">
                 <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: install">Instalar cambios en OpenCart</a>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: clearModifications">Limpiar modificaciones</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: clearModifications">Limpiar modificaciones de
+                    OpenCart</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: downloadZip">Descargar archivo ocmod.zip</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: downloadZip">Descargar archivo .ocmod.zip</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: showInstallXML">Mostrar install.xml</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: showInstallXML">Mostrar archivo
+                    <strong>install.xml</strong></a>
             </div>
         </li>
         <li class="nav-item dropdown">
@@ -267,10 +281,6 @@ Views::BeginBlock('content');
                                         data-bind="disable: !currentProject(), click: function() { toggle('Uploaded') }, css: {'btn-danger': Uploaded, 'btn-dark': !Uploaded()}">
                                     <i class="fa fa-upload"></i>
                                 </button>
-                                <!--<button class="btn btn-sm" type="button" title="Carpetas con archivos modificados"
-                                        data-bind="click: function() { toggle('Modified') }, css: {'btn-danger': Modified, 'btn-dark': !Modified()}">
-                                    <i class="fa fa-exchange"></i>
-                                </button>-->
                             </div>
                             <div class="separator">&nbsp;</div>
                             <button class="btn btn-info" type="button" data-bind="disable: !currentProject(), click: $root.createDir"><i
@@ -350,13 +360,14 @@ Views::BeginBlock('content');
                                         <a class="dropdown-item d-flex align-items-center" style="column-gap: 5px; border: solid 1px white"
                                            data-bind="click: function() { $root.loadFile($data); },
                                                 css: {'disabled bg-info': cur == $data, 'bg-light text-dark': cur!=$data}" href="#">
-                                            <div class="flex-grow-1" data-bind="text: $data.path+'/'+$data.filename"></div>
+                                            <div class="flex-grow-1" data-bind="text: $data.path+'/'+$data.filename, css:{'asterisk': modified}"></div>
                                             <div class="flex-grow-0 pl-2 fa" data-bind="class: $root.getActionIcon($data)"></div>
                                         </a>
                                     </div>
                                 </li>
                             </ul>
                         </div>
+                        <div id="fileIcon" class="bg-warning p-1 rounded mr-1" data-bind="class: getActionIcon(cur)"></div>
                         <div id="fileName" data-bind="css: {changed: cur.modified}">
                             <span data-bind="text: cur.path+'/'"></span><span data-bind="text: cur.filename"></span>
                         </div>

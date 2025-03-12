@@ -16,6 +16,7 @@
     <script type="application/javascript" src="public/third_party/knockout/knockout-3.5.1.min.js"></script>
     <script type="application/javascript" src="public/third_party/toastr/toastr.min.js"></script>
     <script type="application/javascript" src="public/third_party/ace/ace.js"></script>
+    <script type="application/javascript" src="public/third_party/ace/ext-language_tools.js"></script>
     <script type="application/javascript" src="public/third_party/ace/mode-php.js"></script>
     <script type="application/javascript" src="public/third_party/ace/mode-twig.js"></script>
     <script type="application/javascript" src="public/third_party/ace/mode-javascript.js"></script>

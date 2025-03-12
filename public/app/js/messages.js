@@ -165,7 +165,9 @@ function showConfirm(content, callbacks, buttons, remove, backdrop, title, opts)
         }
     });
 
-    dlg.modal({keyboard: true, backdrop: backdrop ? 'static' : ''});
+    if (!(opts && opts.dontShow))
+        dlg.modal({keyboard: true, backdrop: backdrop ? 'static' : ''});
+
     dlg.okFailed = function () {
         hiding = false;
     }

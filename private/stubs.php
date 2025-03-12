@@ -67,21 +67,17 @@ class _Files_class {
 }
 
 class _OCMOD_class {
+  public $fileBlocks = [];
   public $errors = [];
   
   public function getXML(){}
   
   public function getErrors(){}
-  /**
-     * Procesa el contenido de un archivo en busca de bloques OCMOD.
-     * @param $text
-     * Contenido del archivo a procesar
-     * @param $fileName
-     * Nombre del archivo (solo para incluir en el texto de los errores)
-     * @return bool
-     * Devuelve false si no se encuentra ningún bloque OCMOD y true si contiene al menos un bloque, sean o no válidos.
-     * Si hay errores devuelve true y se reflejan en MODEL::OCMOD()->errors.
-     */
+  
+  public function processContent($text, $fileName): bool{
+    return true;
+  }
+  
   public function processContent($text, $fileName): bool{
     return true;
   }
