@@ -1,7 +1,7 @@
 {
     "theme": "monokai",
     "fontSize": 13,
-    "softWraps": 1,
+    "softWraps": 0,
     "softTabs": 1,
     "tabSize": 4,
     "showLineNumbers": 1,
@@ -17,15 +17,16 @@
             "author": "Amaury Herrera Brito",
             "link": "",
             "updateCache": false,
-            "lastPath": "\/admin",
-            "lastPathOpened": 1,
+            "lastPath": "\/admin\/language\/en-gb\/customer",
+            "lastPathOpened": 0,
             "openedFiles": [
-                "ocmod|3,14,0,0|\/admin\/config.php",
-                "orig|0,0,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
-                "ocmod|4,35,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
-                "diff|0,0,0,0|\/admin\/language\/en-gb\/customer\/customer.php"
+                "ocmod|7,48,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
+                "diff|27,44,0,0|\/admin\/language\/en-gb\/customer\/customer.php",
+                "ocmod|5,22,0,0|\/admin\/view\/template\/customer\/custom_field_form.twig",
+                "ocmod|2,2,0,0|\/admin\/view\/template\/customer\/customer_approval_list.twig",
+                "diff|0,0,0,-392|\/admin\/view\/template\/customer\/customer_form.twig"
             ],
-            "lastOpenedFile": -1
+            "lastOpenedFile": 1
         },
         "client_order_history": {
             "projectName": "Historial de pedidos de cliente",
@@ -37,10 +38,13 @@
             "author": "Amaury Herrera Brito",
             "link": "",
             "updateCache": false,
-            "lastPath": "\/admin",
+            "lastPath": "\/admin\/controller\/catalog",
             "lastPathOpened": 0,
-            "openedFiles": [],
-            "lastOpenedFile": -1
+            "openedFiles": [
+                "ocmod|0,0,0,0|\/admin\/controller\/catalog\/category.php",
+                "ocmod|5,12,0,0|\/admin\/view\/template\/customer\/custom_field_form.twig"
+            ],
+            "lastOpenedFile": 1
         }
     }
 }
