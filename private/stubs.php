@@ -57,7 +57,7 @@ class _Files_class {
   
   public function delDir($relPath){}
   
-  public function delTree($dir, $delRoot = false){}
+  public function delTree($dir, $delRoot = false, callable $callBack = null){}
   
   public function renDir($relPath, $newName){}
   
@@ -73,11 +73,16 @@ class _OCMOD_class {
   public function getXML(){}
   
   public function getErrors(){}
-  
-  public function processContent($text, $fileName): bool{
-    return true;
-  }
-  
+  /**
+     * Procesa el contenido de un archivo en busca de bloques OCMOD.
+     * @param $text
+     * Contenido del archivo a procesar
+     * @param $fileName
+     * Nombre del archivo (solo para incluir en el texto de los errores)
+     * @return bool
+     * Devuelve false si no se encuentra ningún bloque OCMOD y true si contiene al menos un bloque, sean o no válidos.
+     * Si hay errores devuelve true y se reflejan en MODEL::OCMOD()->errors.
+     */
   public function processContent($text, $fileName): bool{
     return true;
   }

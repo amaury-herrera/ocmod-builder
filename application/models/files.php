@@ -265,12 +265,16 @@ class FilesModel {
         return 'No ha sido posible eliminar la carpeta.';
     }
 
-    public function delTree($dir, $delRoot = false) {
+    public function delTree($dir, $delRoot = false, callable $callBack = null) {
         if (($contents = @scandir($dir)) !== false) {
             $files = array_diff($contents, array('.', '..'));
 
             foreach ($files as &$file) {
                 $path = $dir . DS . $file;
+
+                if ($callBack && !$callBack($path))
+                    continue;
+
                 if (!(is_dir($path) ? $this->delTree($path, true) : unlink($path)))
                     return false;
             }

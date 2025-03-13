@@ -116,22 +116,20 @@ class Ocmod {
     public function ajax_clearModifications() {
         $this->prepareSession();
 
-        $url = OPENCART_URL . '/admin/index.php?route=marketplace/modification/clear&user_token=' . $this->sessionData->data->user_token;
-        $curl = $this->init_curl($url);
-        $json = curl_exec($curl);
-        curl_close($curl);
+        $dirModification = MODEL::Files()->normalizePath(DIR_MODIFICATION);
 
-        if ($json === false) {
+        //Eliminar el contenido de la carpeta modification. Se mantiene el archivo index.html en la raíz de dicha carpeta
+        $result = MODEL::Files()->delTree($dirModification, false,
+            function ($path) use ($dirModification) {
+                return MODEL::Files()->normalizePath($path) != $dirModification . DS . 'index.html';
+            }
+        );
+
+        if ($result === false)
             echo json_encode(['error' => 'No se ha podido completar la operación.']);
-            die;
-        }
+        else
+            echo json_encode(['ok' => true]);
 
-        $json = json_decode($json, true);
-        if (is_null($json))
-            $json = ['ok' => true];
-
-        echo json_encode($json);
-        die;
     }
 
     private function connectDB() {
@@ -202,7 +200,6 @@ class Ocmod {
     }
 
     //Upload the ocmod.zip file created ********************************************************
-
     private function _upload($url) {
         $curl = $this->init_curl($url);
 
@@ -241,10 +238,10 @@ class Ocmod {
     }
 
     //Process next URL ********************************************************
-
     private function _processURL($url) {
         $curl = $this->init_curl($url);
         $json = curl_exec($curl);
+        $code = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
         curl_close($curl);
 
         if ($json === false) {

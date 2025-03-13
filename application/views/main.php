@@ -97,7 +97,8 @@ Views::BeginBlock('content');
             <div class="form-group">
                 <label class="m-0" for="url">URL de OpenCart</label>
                 <input type="text" class="form-control" name="url" id="url" placeholder="URL de OpenCart" value=""
-                       data-rule="required,url,regexp[re],checkURL" data-re="/^https?/" data-msg="||La URL debe ser http o https" data-tooltip-place="right">
+                       data-rule="required,url,regexp[re],checkURL" data-re="/^https?/" data-msg="||La URL debe ser http o https"
+                       data-tooltip-place="right">
             </div>
         </div>
         <div class="col-12 col-lg-7 d-none w-100" id="installXML">
@@ -175,7 +176,7 @@ Views::BeginBlock('content');
                                   saveDisabled: openedFiles().length == 0 || (currentEditor() && !currentEditor().modified())}">
                 <div class="dropdown-submenu">
                     <a class="dropdown-item dropdown-toggle" href="#" id="newDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
-                       aria-expanded="false">Nuevo</a>
+                       aria-expanded="false"><i class="fa fa-upload menu-icon"></i> Nuevo</a>
                     <div class="dropdown-menu" aria-labelledby="newDropdown">
                         <a class="dropdown-item" href="#"
                            data-bind="css: {disabled: noProj}, click: function() { newFile({lang: 'PHP', ext:'.php'}); }">PHP</a>
@@ -186,13 +187,13 @@ Views::BeginBlock('content');
                     </div>
                 </div>
                 <a class="dropdown-item" href="#" data-bind="click: function() { save(); }, disable: saveDisabled,
-                    css: {disabled: saveDisabled}">Guardar</a>
+                    css: {disabled: saveDisabled}"><i class="fa fa-save menu-icon"></i> Guardar</a>
                 <a class="dropdown-item" href="#" data-bind="click: saveAll, disable: !someModified(),
-                    css: {disabled: saveDisabled}">Guardar todo</a>
+                    css: {disabled: saveDisabled}"><i class="menu-icon"></i> Guardar todo</a>
                 <a class="dropdown-item" href="#" data-bind="click: function() { closeFile(); }, disable: noFileOpened,
-                    css: {disabled: noFileOpened}">Cerrar</a>
+                    css: {disabled: noFileOpened}"><i class="fa fa-close menu-icon"></i> Cerrar</a>
                 <a class="dropdown-item" href="#" data-bind="click: closeAll, disable: noFileOpened,
-                    css: {disabled: noFileOpened}">Cerrar todo</a>
+                    css: {disabled: noFileOpened}"><i class="menu-icon"></i> Cerrar todo</a>
                 <!--<div class="dropdown-divider"></div>-->
             </div>
         </li>
@@ -200,11 +201,16 @@ Views::BeginBlock('content');
             <a class="nav-link dropdown-toggle" href="#" id="mnuProj" role="button" data-toggle="dropdown" aria-haspopup="true"
                aria-expanded="false">Proyecto</a>
             <div class="dropdown-menu" aria-labelledby="mnuProj">
-                <a class="dropdown-item" href="#" data-bind="click: newProject">Crear nuevo proyecto...</a>
-                <a class="dropdown-item" href="#" data-bind="click: newProjectFromXML">Crear nuevo proyecto desde <strong>install.xml</strong>...</a>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: updateProject">Actualizar datos...</a>
+                <a class="dropdown-item" href="#" data-bind="click: newProject">
+                    <i class="fa fa-tasks menu-icon"></i> Crear nuevo proyecto...</a>
+                <a class="dropdown-item" href="#" data-bind="click: newProjectFromXML">
+                    <i class="menu-icon"></i> Crear nuevo proyecto desde <strong>install.xml</strong>...</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: deleteProject">Eliminar proyecto activo</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: updateProject">
+                    <i class="fa fa-edit menu-icon"></i> Actualizar datos...</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: deleteProject">
+                    <i class="fa fa-trash menu-icon"></i> Eliminar proyecto activo</a>
             </div>
         </li>
         <li class="nav-item dropdown">
@@ -212,14 +218,16 @@ Views::BeginBlock('content');
                aria-expanded="false">OCMOD</a>
             <div class="dropdown-menu" aria-labelledby="mnuOcmod"
                  data-bind="let: {noFileOpened: openedFiles().length == 0, saveDisabled: openedFiles().length == 0 || (currentEditor() && !currentEditor().modified())}">
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: install">Instalar cambios en OpenCart</a>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: clearModifications">Limpiar modificaciones de
-                    OpenCart</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: install">
+                    <i class="fa fa-refresh menu-icon"></i> Instalar cambios en OpenCart </a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: clearModifications">
+                    <i class="fa fa-eraser menu-icon"></i> Limpiar modificaciones de OpenCart</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: downloadZip">Descargar archivo .ocmod.zip</a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: downloadZip">
+                    <i class="fa fa-download menu-icon"></i> Descargar archivo .ocmod.zip</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: showInstallXML">Mostrar archivo
-                    <strong>install.xml</strong></a>
+                <a class="dropdown-item" href="#" data-bind="css: {disabled: noProj}, click: showInstallXML">
+                    <i class="menu-icon"></i> Mostrar archivo <strong>install.xml</strong></a>
             </div>
         </li>
         <li class="nav-item dropdown">
@@ -360,7 +368,8 @@ Views::BeginBlock('content');
                                         <a class="dropdown-item d-flex align-items-center" style="column-gap: 5px; border: solid 1px white"
                                            data-bind="click: function() { $root.loadFile($data); },
                                                 css: {'disabled bg-info': cur == $data, 'bg-light text-dark': cur!=$data}" href="#">
-                                            <div class="flex-grow-1" data-bind="text: $data.path+'/'+$data.filename, css:{'asterisk': modified}"></div>
+                                            <div class="flex-grow-1"
+                                                 data-bind="text: $data.path+'/'+$data.filename, css:{'asterisk': modified}"></div>
                                             <div class="flex-grow-0 pl-2 fa" data-bind="class: $root.getActionIcon($data)"></div>
                                         </a>
                                     </div>

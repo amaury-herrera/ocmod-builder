@@ -209,7 +209,7 @@ class Main {
             return;
         }
 
-        $xml = simplexml_load_string(Post::content());
+        $xml = @simplexml_load_string(Post::content(), null, LIBXML_NOBLANKS);
 
         if ($xml === false) {
             echo json_encode(['error' => 'No ha sido posible parsear el documento XML.']);
@@ -257,28 +257,36 @@ class Main {
         }
 
         //Crear la carpeta ocmod, las demás se crean cuando se abra el proyecto
-        if (!@mkdir('projects' . DS . $code . DS . 'ocmod', 0777, true)) {
-            echo json_encode(['error' => 'No ha sido posible preparar el entorno para el nuevo proyecto.']);
-            return;
+        if (!is_dir($ocmodPath = ('projects' . DS . $code . DS . 'ocmod'))) {
+            if (!@mkdir($ocmodPath, 0777, true)) {
+                echo json_encode(['error' => 'No ha sido posible preparar el entorno para el nuevo proyecto.']);
+                return;
+            }
         }
 
         $blocks = [
             'php' => "/*<OCMOD>*/
-/*<search[{searchAttr}]>[{searchContent}]</search>*/
-/*<add[{addAttr}]>
-*/[{addContent}]
+/*<search[{searchAttr}] TRIM>*/
+[{searchContent}]
+/*</search>*/
+/*<add[{addAttr}]>*/
+[{addContent}]
 /*</add>*/
 /*</OCMOD>*/
 ",
             'js' => "/*<OCMOD>*/
-/*<search[{searchAttr}]>[{searchContent}]</search>*/
+/*<search[{searchAttr}] TRIM>*/
+[{searchContent}]
+/*</search>*/
 /*<add[{addAttr}]>*/
 [{addContent}]
 /*</add>*/
 /*</OCMOD>*/
 ",
             'twig' => "{#<OCMOD>#}
-{#<search[{searchAttr}]>[{searchContent}]</search>#}
+{#<search[{searchAttr}] TRIM>#}
+[{searchContent}]
+{#</search>#}
 {#<add[{addAttr}]>#}
 [{addContent}]
 {#</add>#}
@@ -405,7 +413,6 @@ class Main {
             'lastOpenedFile' => -1
         ];
 
-        return;
         $cfg->projects = $projects;
 
         echo json_encode(['ok' => $cfg->update()]);

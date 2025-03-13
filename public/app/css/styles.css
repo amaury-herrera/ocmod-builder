@@ -102,6 +102,11 @@ form {
     overflow: auto;
 }
 
+.dropdown-menu {
+    margin-top: -2px!important;
+    margin-left: -1px!important;
+}
+
 .dropdown-submenu {
     position: relative;
 }
@@ -111,6 +116,16 @@ form {
     left: 100%;
     margin-left: .1rem;
     margin-right: .1rem;
+}
+
+.nav-item.dropdown.show {
+    background-color: white;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.nav-item.dropdown.show a:not(.disabled) {
+    color: black !important;
 }
 
 .tree a {
@@ -131,12 +146,17 @@ span.a, small.a {
 }
 
 .asterisk:before {
-    content: "\f0c7";/*106*/
+    content: "\f0c7"; /*106*/
     position: absolute;
     font-size: 9pt;
     margin-left: -14px;
     margin-top: -4px;
     font-family: FontAwesome;
+}
+
+.menu-icon {
+    width: 20px;
+    display: inline-block;
 }
 
 .ace_active-line {

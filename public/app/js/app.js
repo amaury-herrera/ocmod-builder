@@ -579,6 +579,7 @@ class ControllerSample extends Controller {\n\
                 switch (id) {
                     case 'First':
                         row = ed.markerList[0].startRow;
+                        found = true;
                         break;
 
                     case 'Prev':
@@ -603,6 +604,7 @@ class ControllerSample extends Controller {\n\
 
                     case 'Last':
                         row = ed.markerList[ed.markerList.length - 1].startRow;
+                        found = true;
                         break;
                 }
             } else {
@@ -612,16 +614,16 @@ class ControllerSample extends Controller {\n\
                     case 'Next':
                     case 'First':
                         row = id === 'First' ? 0 : curPos.row + 1;
-                        while (row < docLen && ed.editor.session.getLine(row).toUpperCase().indexOf(ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd) < 0)
+                        while (row < docLen && !isOpenOCMODTag(ed.editor.session.getLine(row)))
                             row++;
                         found = row < docLen;
                         break;
 
                     case 'Prev':
                     case 'Last':
-                        row = id == 'Prev' ? curPos.row : docLen - 1;
+                        row = id === 'Prev' ? curPos.row : docLen - 1;
                         while (row >= 0) {
-                            if (ed.editor.session.getLine(row).toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0) {
+                            if (isCloseOCMODTag(ed.editor.session.getLine(row))) {
                                 let r = getCurrentOCMODRange(new ace.Range(row, 0, row, 0));
                                 row = r.start.row;
                                 break;
@@ -1258,6 +1260,9 @@ class ControllerSample extends Controller {\n\
         t.closeAll();
     }
 
+    /**
+     * Elimina el proyecto activo
+     */
     t.deleteProject = function () {
         showConfirm('Va a proceder a eliminar el proyecto:<div class="ml-3 mt-2"><strong>' + projectData().projectName + '</strong></div><br>' +
             '¿Está seguro que desea eliminarlo?', {
@@ -1278,6 +1283,9 @@ class ControllerSample extends Controller {\n\
         })
     }
 
+    /**
+     * Carga y muestra una copia actualizada del archivo install.xml
+     */
     t.showInstallXML = function () {
         function loadFile() {
             t.loadFile('/install.xml', 'install-xml');
@@ -1299,6 +1307,10 @@ class ControllerSample extends Controller {\n\
             loadFile();
     }
 
+    /**
+     * Carga un archivo a partir de información de la lista de archivos
+     * @param fileData
+     */
     t.loadFileFromData = function (fileData) {
         t.loadFile(fileData, fileData.u() ? 'upload' : (fileData.m() ? 'orig' : 'ocmod'));
     }
@@ -1373,12 +1385,10 @@ class ControllerSample extends Controller {\n\
                 js: 'javascript',
                 xml: 'xml'
             },
-            lang = ext in langs ? langs[ext] : ''/* ext == '.php' ? 'php' : (ext == '.twig' ? 'twig' : (ext == '.js' ? 'javascript' : ''))*/;
+            lang = ext in langs ? langs[ext] : '';
 
         function createEditor(content, isDiff) {
-            editorData.ocmodCommentStart = lang == 'twig' ? '{#' : '/*';
-            editorData.ocmodCommentEnd = lang == 'twig' ? '#}' : '*/';
-            editorData.isUploadFile = action == 'upload';
+            editorData.isUploadFile = action === 'upload';
             editorData.isEditableFile = false;
 
             cutBlock = null;
@@ -1586,12 +1596,14 @@ class ControllerSample extends Controller {\n\
      */
     t.install = function () {
         function doInstall() {
-            const dlg = getDlgContent('', '<div><strong>Instalando cambios...</strong></div><div class="d-inline-block text-info" id="fname"></div><div id="file"></div>', null, {noButtons: true});
+            const dlg = getDlgContent('', '<strong>Instalando cambios...</strong>', null, {noButtons: true});
 
             dlg.on('hidden.bs.modal', function (e) {
                 const ed = t.currentEditor();
-                ed.editor.renderer.updateFull();
-                ed.editor.focus();
+                if (ed) {
+                    ed.editor.renderer.updateFull();
+                    ed.editor.focus();
+                }
             });
 
             dlg.on('shown.bs.modal', function (e) {
@@ -1687,6 +1699,119 @@ class ControllerSample extends Controller {\n\
                                 t.fileList().forEach(function (f) {
                                     f.m(false);
                                 });
+                            } else {
+                                sysMsgs.show(d.result, __MSG_ERROR, true, 3000);
+                            }
+                        }, 'json');
+                }
+            });
+    }
+
+    /**
+     * Crea un nuevo archivo del tipo especificado, sin agregarlo a la lista de archivos (se agrega al guardar)
+     * @param f
+     */
+    t.newFile = function (f) {
+        const path = t.curPath();
+
+        showPrompt('Nombre del archivo ' + f.lang + ' (' + f.ext + ')', '',
+            function (name) {
+                let fileData = {
+                    n: ko.observable(name + f.ext),
+                    o: ko.observable(false),
+                    u: ko.observable(true),
+                    m: ko.observable(false),
+                    new: true,
+                    path: t.curPath()
+                }
+
+                t.loadFileFromData(fileData);
+            },
+            {
+                rules: 'required_trim,maxlength[24],regexp[re],checkDups',
+                regExp: {
+                    re: '/^[a-zA-Z0-9_]+$/'
+                },
+                custom: [
+                    {
+                        name: 'checkDups',
+                        fn: function (v) {
+                            const fname = v + f.ext;
+
+                            return (
+                                t.fileList()
+                                    .filter(function (fd) {
+                                        return fd.n() === fname;
+                                    })
+                                    .length === 0
+                                &&
+                                t.openedFiles()
+                                    .filter(function (fd) {
+                                        return fd.path === path && fd.filename === fname;
+                                    })
+                                    .length === 0
+                            );
+                        },
+                        msg: 'Ya existe un archivo con el nombre especificado en la carpeta activa'
+                    },
+                ],
+                tooltipPlace: 'bottom'
+            }
+        );
+    }
+
+    /**
+     * Eliminar un archivo.
+     * - Si el archivo es nuevo (upload) se elimina físicamente y de la lista de archivos
+     * - Si el archivo es ocmod, se elimina físicamente y solo actualiza su estado u(false) en la lista de archivos
+     * @param file
+     * Datos del archivo
+     * @param e
+     */
+    t.deleteFile = function (file, e) {
+        e.stopPropagation();
+
+        const path = t.curPath();
+
+        showConfirm('¿Está seguro que desea el archivo: <strong>' + file.n() + '</strong>?',
+            {
+                ok: function () {
+                    $.post('main/deleteFile', {path: getPath(t.activeLeaf()), name: file.n(), m: file.m(), o: file.o(), u: file.u()},
+                        function (d) {
+                            if (d.result === true) {
+                                //Actualizar la cantidad de elementos de cada tipo en los padres
+                                let leaf = t.activeLeaf(),
+                                    u = file.u(),
+                                    o = file.o();
+
+                                do {
+                                    if (u) {
+                                        leaf.u(Math.max(0, leaf.u() - 1));
+                                    } else if (o)
+                                        leaf.o(Math.max(0, leaf.o() - 1));
+
+                                    if (leaf.originalLeaf) {
+                                        if (u) {
+                                            leaf.originalLeaf.u(Math.max(0, leaf.originalLeaf.u() - 1));
+                                        } else if (o)
+                                            leaf.originalLeaf.o(Math.max(0, leaf.originalLeaf.o() - 1));
+                                    }
+                                } while (leaf = leaf.parent);
+
+                                if (file.u())
+                                    t.fileList.remove(file);
+                                else
+                                    file.o() && file.o(false);
+
+                                //Si el archivo está abierto, lo cerramos
+                                const files = t.openedFiles();
+                                for (let i = 0; i < files.length; i++) {
+                                    let fl = files[i];
+                                    if (fl.path === path && fl.filename === file.n()) {
+                                        t.closeFile(fl, true);
+                                        break;
+                                    }
+                                }
                             } else {
                                 sysMsgs.show(d.result, __MSG_ERROR, true, 3000);
                             }
@@ -1904,6 +2029,44 @@ class ControllerSample extends Controller {\n\
     }
 
     /**
+     * Renombrar la carpeta activa.
+     * - Se actualiza la ruta activa (curPath)
+     * - Se actualiza la ruta de los archivos abiertos
+     * - Se actualiza la última ruta en la configuración del proyecto activo
+     */
+    t.renameDir = function () {
+        const lastPath = t.curPath();
+
+        showPrompt('Nuevo nombre para <strong>' + t.activeLeaf().n() + '</strong>', t.activeLeaf().n(),
+            function (newName) {
+                let act = t.activeLeaf();
+                $.post('main/renameDir', {path: getPath(t.activeLeaf()), name: newName},
+                    function (d) {
+                        if (d.result == true) {
+                            act.n(newName);
+                            if ('originalLeaf' in act)
+                                act.originalLeaf.n(newName);
+
+                            const newPath = getPath(act);
+
+                            t.curPath(newPath);
+
+                            //Actualizar las rutas de archivos abiertos con la ruta nueva
+                            t.openedFiles().forEach(function (f) {
+                                if (f.path === lastPath)
+                                    f.path = newPath;
+                            });
+
+                            t.currentEditor(t.currentEditor());
+
+                            saveLastPath();
+                        } else
+                            sysMsgs.show(d.result, __MSG_ERROR, true, 3000);
+                    }, 'json');
+            });
+    }
+
+    /**
      * Eliminar la carpeta activa
      * - Se actualiza la cantidad de archivos nuevos y/o modificados y la cantidad de carpetas nuevas
      * - Se cierran los archivos abiertos que estén dentro de la ruta eliminada
@@ -1960,157 +2123,6 @@ class ControllerSample extends Controller {\n\
             });
     }
 
-    /**
-     * Renombrar la carpeta activa.
-     * - Se actualiza la ruta activa (curPath)
-     * - Se actualiza la ruta de los archivos abiertos
-     * - Se actualiza la última ruta en la configuración del proyecto activo
-     */
-    t.renameDir = function () {
-        const lastPath = t.curPath();
-
-        showPrompt('Nuevo nombre para <strong>' + t.activeLeaf().n() + '</strong>', t.activeLeaf().n(),
-            function (newName) {
-                let act = t.activeLeaf();
-                $.post('main/renameDir', {path: getPath(t.activeLeaf()), name: newName},
-                    function (d) {
-                        if (d.result == true) {
-                            act.n(newName);
-                            if ('originalLeaf' in act)
-                                act.originalLeaf.n(newName);
-
-                            const newPath = getPath(act);
-
-                            t.curPath(newPath);
-
-                            //Actualizar las rutas de archivos abiertos con la ruta nueva
-                            t.openedFiles().forEach(function (f) {
-                                if (f.path === lastPath)
-                                    f.path = newPath;
-                            });
-
-                            t.currentEditor(t.currentEditor());
-
-                            saveLastPath();
-                        } else
-                            sysMsgs.show(d.result, __MSG_ERROR, true, 3000);
-                    }, 'json');
-            });
-    }
-
-    /**
-     * Eliminar un archivo.
-     * - Si el archivo es nuevo (upload) se elimina físicamente y de la lista de archivos
-     * - Si el archivo es ocmod, se elimina físicamente y solo actualiza su estado u(false) en la lista de archivos
-     * @param file
-     * Datos del archivo
-     * @param e
-     */
-    t.deleteFile = function (file, e) {
-        e.stopPropagation();
-
-        const path = t.curPath();
-
-        showConfirm('¿Está seguro que desea el archivo: <strong>' + file.n() + '</strong>?',
-            {
-                ok: function () {
-                    $.post('main/deleteFile', {path: getPath(t.activeLeaf()), name: file.n(), m: file.m(), o: file.o(), u: file.u()},
-                        function (d) {
-                            if (d.result === true) {
-                                //Actualizar la cantidad de elementos de cada tipo en los padres
-                                let leaf = t.activeLeaf(),
-                                    u = file.u(),
-                                    o = file.o();
-
-                                do {
-                                    if (u) {
-                                        leaf.u(Math.max(0, leaf.u() - 1));
-                                    } else if (o)
-                                        leaf.o(Math.max(0, leaf.o() - 1));
-
-                                    if (leaf.originalLeaf) {
-                                        if (u) {
-                                            leaf.originalLeaf.u(Math.max(0, leaf.originalLeaf.u() - 1));
-                                        } else if (o)
-                                            leaf.originalLeaf.o(Math.max(0, leaf.originalLeaf.o() - 1));
-                                    }
-                                } while (leaf = leaf.parent);
-
-                                if (file.u())
-                                    t.fileList.remove(file);
-                                else
-                                    file.o() && file.o(false);
-
-                                //Si el archivo está abierto, lo cerramos
-                                const files = t.openedFiles();
-                                for (let i = 0; i < files.length; i++) {
-                                    let fl = files[i];
-                                    if (fl.path === path && fl.filename === file.n()) {
-                                        t.closeFile(fl, true);
-                                        break;
-                                    }
-                                }
-                            } else {
-                                sysMsgs.show(d.result, __MSG_ERROR, true, 3000);
-                            }
-                        }, 'json');
-                }
-            });
-    }
-
-    /**
-     * Crea un archivo nuevo del tipo especificado, sin agregarlo a la lista de archivos (se agrega al guardar)
-     * @param f
-     */
-    t.newFile = function (f) {
-        const path = t.curPath();
-
-        showPrompt('Nombre del archivo ' + f.lang + ' (' + f.ext + ')', '',
-            function (name) {
-                let fileData = {
-                    n: ko.observable(name + f.ext),
-                    o: ko.observable(false),
-                    u: ko.observable(true),
-                    m: ko.observable(false),
-                    new: true,
-                    path: t.curPath()
-                }
-
-                t.loadFileFromData(fileData);
-            },
-            {
-                rules: 'required_trim,maxlength[24],regexp[re],checkDups',
-                regExp: {
-                    re: '/^[a-zA-Z0-9_]+$/'
-                },
-                custom: [
-                    {
-                        name: 'checkDups',
-                        fn: function (v) {
-                            const fname = v + f.ext;
-
-                            return (
-                                t.fileList()
-                                    .filter(function (fd) {
-                                        return fd.n() === fname;
-                                    })
-                                    .length === 0
-                                &&
-                                t.openedFiles()
-                                    .filter(function (fd) {
-                                        return fd.path === path && fd.filename === fname;
-                                    })
-                                    .length === 0
-                            );
-                        },
-                        msg: 'Ya existe un archivo con el nombre especificado en la carpeta activa'
-                    },
-                ],
-                tooltipPlace: 'bottom'
-            }
-        );
-    }
-
     /*$(window).on('beforeunload', function (e) {
         let msg = 'Seguro?';
         e.preventDefault();
@@ -2134,6 +2146,18 @@ class ControllerSample extends Controller {\n\
         enableNavButtons();
     });
 
+    function isOpenOCMODTag(line) {
+        return !!line.match(/({#|\/\*|<!--)?[ \t]*<OCMOD>[ \t]*(#}|\*\/|-->)?/ig);
+    }
+
+    function isCloseOCMODTag(line) {
+        return !!line.match(/({#|\/\*|<!--)?[ \t]*<\/OCMOD>[ \t]*(#}|\*\/|-->)?/ig);
+    }
+
+    function isOCMODTag(line) {
+        return !!line.match(/({#|\/\*|<!--)?[ \t]*<\/?OCMOD>[ \t]*(#}|\*\/|-->)?/ig);
+    }
+
     function getCurrentOCMODRange(range) {
         let ed = t.currentEditor(),
             selection = ed.editor.getSelection(),
@@ -2145,8 +2169,7 @@ class ControllerSample extends Controller {\n\
 
             if (ed.editor.getReadOnly()) {
                 let line = ed.editor.session.getLine(selRange.start.row).toUpperCase();
-                if (line.indexOf(ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd) < 0 &&
-                    line.indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) < 0)
+                if (!isOCMODTag(line))
                     return resultRange;
             }
 
@@ -2155,17 +2178,17 @@ class ControllerSample extends Controller {\n\
             do {
                 let line = ed.editor.session.getLine(selRange.start.row);
                 lines.unshift(line);
-                if (line.toUpperCase().indexOf(ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd) >= 0)
+                if (isOpenOCMODTag(line))
                     break;
             } while (--selRange.start.row >= 0);
 
             let docLen = ed.editor.session.getLength();
 
-            if (lines[lines.length - 1].toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) < 0) {
+            if (!isCloseOCMODTag(lines[lines.length - 1])) {
                 while (++selRange.end.row < docLen) {
                     let line = ed.editor.session.getLine(selRange.end.row);
                     lines.push(line);
-                    if (line.toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0)
+                    if (isCloseOCMODTag(line))
                         break;
                 }
             }
@@ -2198,105 +2221,8 @@ class ControllerSample extends Controller {\n\
     let initializeCommands = true;
 
     function initializeEditor(ed) {
-        let editor = ed.editor;
-
-        editor.setOptions({
-            dragEnabled: false,
-            enableBasicAutocompletion: true,
-            enableSnippets: true,
-            enableLiveAutocompletion: false
-        });
-
-        if (ed.action === 'ocmod')
-            editor.setOption("enableMultiselect", false); //No permitir múltiples cursores en archivos ocmod
-
-        ed.editor.session.setMode("ace/mode/" + ed.lang, highlightFactory(ed));
-
-        const cmds = editor.commands.byName;
-        cmds.undo.readOnly = true;
-        cmds.redo.readOnly = true;
-
-        if (initializeCommands) {
-            initializeCommands = false;
-
-            //No permitir estos comandos
-            ['togglerecording', 'openCommandPalette', 'openCommandPallete', 'replace']
-                .forEach(function (cmd) {
-                    cmds[cmd].exec = function () {
-                    }
-                })
-
-            const ocmodBlockRE = /^[ \t]*(?:{#|\/\*|<!--)<OCMOD>(?:#}|\*\/|-->)\s*^(?:\s*(?:{#|\/\*|<!--)?[ \t]*<(?<path>path_override)\s*path=(['"]).*\2[ \t]*\/>[ \t]*(?:#}|\*\/|-->)?[\r\n])?(^\s*(?:{#|\/\*|<!--)?[ \t]*<(search|add)(>| [^>\r\n]*>)[ \t]*(?:#}|\*\/|-->)?[\r\n](.*)^\s*(?:{#|\/\*|<!--)?[ \t]*<\/\4>[ \t]*(?:#}|\*\/|-->)?[\r\n]){2}^\s*(?:{#|\/\*|<!--)<\/OCMOD>(?:#}|\*\/|-->)$/ims;
-
-            //Siempre que se ejecuten los siguientes comandos, chequear que no rompe la integridad del bloque OCMOD
-            [
-                'backspace', 'insertstring', 'del', 'cut', 'paste', 'transposeletters', 'splitline', 'togglecomment',
-                'toggleBlockComment', 'splitline', 'splitSelectionIntoLines', 'sortlines',
-                'removeline', 'removewordleft', 'removewordright', 'removetolinestarthard', 'removetolinestart',
-                'removetolineendhard', 'removetolineend',
-                'copylinesdown', 'copylinesup', 'duplicateSelection', 'movelinesdown', 'movelinesup'
-            ].forEach(
-                function (cmd) {
-                    const oldExec = cmds[cmd].exec;
-                    cmds[cmd].exec = function (editor, args) {
-                        let sess = editor.session,
-                            ed = t.openedFiles().filter(function (e) {
-                                return e.editor === editor
-                            });
-
-                        if (!ed)
-                            return;
-
-                        ed = ed[0];
-
-                        // console.log(cmd, cmds)
-                        const modified = ed.modified();
-
-                        oldExec(editor, args);
-
-                        const range = getCurrentOCMODRange(),
-                            lines = range.lines ? range.lines.join('\n') : '';
-
-                        if (!ocmodBlockRE.test(lines)) {
-                            editor.undo();
-
-                            sess.$undoManager.$redoStack.pop();     //No permitir el redo
-                            sess.getSelection().clearSelection();
-
-                            ed.modified(modified);
-                        }
-                    }
-                }
-            );
-        }
-
-        function indentAndInsertBlock(lines, row, indentRow) {
-            let indentLine;
-            do {
-                indentLine = editor.session.getLine(indentRow);
-                if (indentLine.trim() || !indentRow)
-                    break;
-                indentRow++;
-            } while (true);
-
-            let re = /^([\s\t]+).*/,
-                m = indentLine.match(re);
-
-            lines = lines.map(function (ln) {
-                let ml = ln.match(re);
-
-                if (m)
-                    ln = ml ? m[1] + ln.substring(ml[1].length) : m[1] + ln;
-                else if (ml)
-                    ln = ln.substring(ml[1].length);
-
-                return ln;
-            });
-
-            lines.push('');
-
-            editor.session.doc.insertMergedLines({row: row, column: 0}, lines);
-        }
+        let editor = ed.editor,
+            tout = null;
 
         function copy_cut(action) {
             let ed = t.currentEditor();
@@ -2312,6 +2238,71 @@ class ControllerSample extends Controller {\n\
             }
         }
 
+        function getCommentsFromContext(session, row) {
+            session.doc.insertMergedLines({row: row, column: 0}, ['   ', '']);
+            editor.renderer.updateFull(true);
+            
+            session.getMode().toggleBlockComment(
+                session.getState(row),
+                session,
+                {start: {row: row, column: 0}, end: {row: row, column: 3}},
+                {row: row, column: 3}
+            );
+            let line = session.getLine(row),
+                comments = line.match(/([^ ]+)\s+([^ ]+)/);
+
+            session.doc.removeFullLines(row, row);
+
+            return {start: comments[1], end: comments[2]};
+        }
+
+        //Inserta un bloque OCMOD indentado y con los comentarios ajustados según el contexto
+        function insertIndentedBlock(lines, row, indentRow) {
+            const sess = editor.session,
+                comments = getCommentsFromContext(sess, row);
+
+            let indentLine, lineCount = sess.getLength();
+            do {
+                indentLine = sess.getLine(indentRow++);
+                if (indentLine.trim())
+                    break;
+            } while (indentRow < lineCount);
+
+            let re = /^([\s\t]+).*/,
+                m = re && indentLine.match(re);
+
+            lines = lines.map(function (ln) {
+                let ml = ln.match(re);
+
+                if (m)
+                    ln = ml ? m[1] + ln.substring(ml[1].length) : m[1] + ln;
+                else if (ml)
+                    ln = ln.substring(ml[1].length);
+
+                return ln
+                    .replace(/^(\s*)({#|\/\*|<!--)?([ \t]*<\/?(OCMOD|search|add)(>| [^>\r\n]*>)[ \t]*)(#}|\*\/|-->)?/ig,
+                        '$1' + comments.start + '$3' + comments.end)
+                    .replace(/^(\s*)({#|\/\*|<!--)?([ \t]*<path_override\s*path=(['"]).*\4\/>[ \t]*)(#}|\*\/|-->)?(\s*)/ims,
+                        '$1' + comments.start + '$3' + comments.end);
+            });
+
+            lines.push('');
+
+            sess.doc.insertMergedLines({row: row, column: 0}, lines);
+
+            return comments;
+        }
+
+        function updateStatusDebounce() {
+            if (!(isFirstLoad || tout)) {
+                tout = setTimeout(function () {
+                    tout = null;
+                    updateStatus();
+                }, 3000);
+            }
+        }
+
+        /*New commands*/
         editor.commands.addCommand({
             name: "togglePathOverride",
             bindKey: {win: "Alt-P", mac: "Command-Option-P"}, // Asignar la combinación de teclas Alt+P
@@ -2339,13 +2330,10 @@ class ControllerSample extends Controller {\n\
                         selection.cursor.setPosition(range.start.row + 1, 0);
                         selection.clearSelection();
                     } else {
-                        indentAndInsertBlock(
-                            [
-                                ed.ocmodCommentStart + '<path_override path=""/>' + ed.ocmodCommentEnd,
-                            ],
+                        const comments = insertIndentedBlock(['/*<path_override path=""/>*/'],
                             range.start.row + 1, Math.max(0, range.start.row));
 
-                        selection.cursor.setPosition(range.start.row + 1, editor.session.getLine(range.start.row + 1).length - ed.ocmodCommentEnd.length - 2);
+                        selection.cursor.setPosition(range.start.row + 1, editor.session.getLine(range.start.row + 1).length - comments.end.length - 3);
                         selection.clearSelection();
                     }
                 }
@@ -2367,7 +2355,7 @@ class ControllerSample extends Controller {\n\
 
                 if (range.start.row === range.end.row && range.start.column === range.end.column) {
                     //No permitir incluir un bloque dentro de otro
-                    if (editor.session.getLine(range.start.row).toUpperCase().indexOf(ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd) >= 0)
+                    if (isOpenOCMODTag(editor.session.getLine(range.start.row)))
                         return;
 
                     let token = editor.session.getTokenAt(range.start.row, range.start.column);
@@ -2377,18 +2365,20 @@ class ControllerSample extends Controller {\n\
                             return;
                     }
 
+                    const comments = getCommentsFromContext(editor.session, range.start.row);
+
                     let lines = [
-                        ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd,
-                        ed.ocmodCommentStart + '<search trim="false">' + ed.ocmodCommentEnd,
+                        comments.start + '<OCMOD>' + comments.end,
+                        comments.start + '<search trim="false">' + comments.end,
                         '',
-                        ed.ocmodCommentStart + '</search>' + ed.ocmodCommentEnd,
-                        ed.ocmodCommentStart + '<add position="before">' + ed.ocmodCommentEnd,
+                        comments.start + '</search>' + comments.end,
+                        comments.start + '<add position="before">' + comments.end,
                         '',
-                        ed.ocmodCommentStart + '</add>' + ed.ocmodCommentEnd,
-                        ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd,
+                        comments.start + '</add>' + comments.end,
+                        comments.start + '</OCMOD>' + comments.end,
                     ];
 
-                    indentAndInsertBlock(lines, range.start.row, Math.max(0, range.start.row - 1));
+                    insertIndentedBlock(lines, range.start.row, Math.max(0, range.start.row - 1));
 
                     selection.cursor.setPosition(range.start.row + 2, editor.session.getLine(range.start.row + 2).length + 1);
                     selection.clearSelection();
@@ -2440,7 +2430,7 @@ class ControllerSample extends Controller {\n\
                     let range = getCurrentOCMODRange();
                     if (range.start.row < 0 && range.emptySelection) {
                         let curPos = editor.getCursorPosition().row;
-                        indentAndInsertBlock(cutBlock.lines, curPos, Math.max(0, curPos - 1));
+                        insertIndentedBlock(cutBlock.lines, curPos, Math.max(0, curPos - 1));
                         if (clipboardAction === 'cut')
                             cutBlock = null;
                     }
@@ -2470,7 +2460,7 @@ class ControllerSample extends Controller {\n\
                         deltaRow = curPos.row - range.start.row,
                         deltaCol = editor.session.getLine(curPos.row).length - curPos.column;
 
-                    if (prevLine.indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0) {
+                    if (isCloseOCMODTag(prevLine)) {
                         let aboveBlockRange = getCurrentOCMODRange(new ace.Range(upRow, 0, upRow, 0));
                         if (aboveBlockRange.start.row >= 0)
                             upRow = aboveBlockRange.start.row;
@@ -2478,7 +2468,7 @@ class ControllerSample extends Controller {\n\
 
                     editor.session.doc.removeFullLines(range.start.row, range.end.row);
 
-                    indentAndInsertBlock(range.lines, upRow, Math.max(0, upRow - 1));
+                    insertIndentedBlock(range.lines, upRow, Math.max(0, upRow - 1));
 
                     let cursorRow = upRow + deltaRow;
 
@@ -2503,7 +2493,7 @@ class ControllerSample extends Controller {\n\
 
                 let range = getCurrentOCMODRange();
 
-                if (range.end.row >= 0 && range.end.row < editor.session.getLength() - 1) {
+                if (range.end.row >= 0 && range.end.row < editor.session.getLength() - 2) {
                     let sel = editor.getSelection(),
                         curPos = sel.cursor.getPosition(),
                         deltaRow = curPos.row - range.start.row,
@@ -2514,14 +2504,14 @@ class ControllerSample extends Controller {\n\
                     let belowRow = range.start.row;
 
                     //Let's see if the line below the block is the end of another block
-                    if (editor.session.getLine(belowRow).indexOf(ed.ocmodCommentStart + '<OCMOD>' + ed.ocmodCommentEnd) >= 0) {
+                    if (isOpenOCMODTag(editor.session.getLine(belowRow))) {
                         let belowBlockRange = getCurrentOCMODRange(new ace.Range(belowRow, 0, belowRow, 0));
                         if (belowBlockRange.end.row >= 0)
                             belowRow = belowBlockRange.end.row + 1;
                     } else
                         belowRow++;
 
-                    indentAndInsertBlock(range.lines, belowRow, range.start.row);
+                    insertIndentedBlock(range.lines, belowRow, range.start.row);
 
                     let cursorRow = belowRow + deltaRow;
 
@@ -2534,18 +2524,9 @@ class ControllerSample extends Controller {\n\
             readOnly: true
         });
 
-        let tout = null;
-
-        function updateStatusDebounce() {
-            if (!(isFirstLoad || tout)) {
-                tout = setTimeout(function () {
-                    tout = null;
-                    updateStatus();
-                }, 3000);
-            }
-        }
-
+        /*Events*/
         editor.session.on('changeScrollTop', updateStatusDebounce);
+
         editor.session.on('changeScrollLeft', updateStatusDebounce);
 
         editor.session.on('changeSelection', function (delta) {
@@ -2586,7 +2567,7 @@ class ControllerSample extends Controller {\n\
                     }
                 }
 
-                if (line.toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0) {
+                if (isCloseOCMODTag(line)) {
                     editor.setReadOnly(true);
                     return;
                 }
@@ -2616,22 +2597,10 @@ class ControllerSample extends Controller {\n\
 
                 let line = editor.session.getLine(row);
 
-                if (line.toUpperCase().indexOf(ed.ocmodCommentStart + '</OCMOD>' + ed.ocmodCommentEnd) >= 0) {
+                if (isCloseOCMODTag(line)) {
                     editor.setReadOnly(true);
                     return;
                 }
-
-                /*if (!emptySelection) {
-                    if (/^\s*({#|\/\*|\/\/|<!--)?<(search|add)/.test(line) && range.start.row !== range.end.row) {
-                        editor.setReadOnly(true);
-                        return;
-                    }
-
-                    if (/^\s*({#|\/\*|\/\/|<!--)?<\/(search|add)>/.test(line)) {
-                        editor.setReadOnly(true);
-                        return;
-                    }
-                }*/
 
                 row++;
             }
@@ -2640,7 +2609,77 @@ class ControllerSample extends Controller {\n\
         editor.session.on('change', function (e, v) {
             ed.modified(true);
         });
-    };
+
+        /**********************************/
+        editor.setOptions({
+            dragEnabled: false,
+            enableBasicAutocompletion: true,
+            enableSnippets: true,
+            enableLiveAutocompletion: false
+        });
+
+        if (ed.action === 'ocmod')
+            editor.setOption("enableMultiselect", false); //No permitir múltiples cursores en archivos ocmod
+
+        ed.editor.session.setMode("ace/mode/" + ed.lang, highlightFactory(ed));
+
+        const cmds = editor.commands.byName;
+        cmds.undo.readOnly = true;
+        cmds.redo.readOnly = true;
+
+        if (initializeCommands) {
+            initializeCommands = false;
+
+            //No permitir estos comandos
+            ['togglerecording', 'openCommandPalette', 'openCommandPallete', 'replace']
+                .forEach(function (cmd) {
+                    cmds[cmd].exec = function () {
+                    }
+                })
+
+            const ocmodBlockRE = /^[ \t]*(?:{#|\/\*|<!--)<OCMOD>(?:#}|\*\/|-->)\s*^(?:\s*(?:{#|\/\*|<!--)?[ \t]*<(?<path>path_override)\s*path=(['"]).*\2[ \t]*\/>[ \t]*(?:#}|\*\/|-->)?[\r\n])?(^\s*(?:{#|\/\*|<!--)?[ \t]*<(search|add)(>| [^>\r\n]*>)[ \t]*(?:#}|\*\/|-->)?[\r\n](.*)^\s*(?:{#|\/\*|<!--)?[ \t]*<\/\4>[ \t]*(?:#}|\*\/|-->)?[\r\n]){2}^\s*(?:{#|\/\*|<!--)<\/OCMOD>(?:#}|\*\/|-->)$/ims;
+
+            //Siempre que se ejecuten los siguientes comandos, chequear que no rompe la integridad del bloque OCMOD
+            [
+                'backspace', 'insertstring', 'del', 'cut', 'paste', 'transposeletters',
+                'togglecomment', 'toggleBlockComment', 'splitline', 'splitSelectionIntoLines', 'sortlines',
+                'removeline', 'removewordleft', 'removewordright', 'removetolinestarthard', 'removetolinestart',
+                'removetolineendhard', 'removetolineend',
+                'copylinesdown', 'copylinesup', 'duplicateSelection', 'movelinesdown', 'movelinesup'
+            ].forEach(
+                function (cmd) {
+                    const oldExec = cmds[cmd].exec;
+                    cmds[cmd].exec = function (editor, args) {
+                        let sess = editor.session,
+                            ed = t.openedFiles().filter(function (e) {
+                                return e.editor === editor
+                            });
+
+                        if (!ed)
+                            return;
+
+                        ed = ed[0];
+
+                        const modified = ed.modified();
+
+                        oldExec(editor, args);
+
+                        const range = getCurrentOCMODRange(),
+                            lines = range.lines ? range.lines.join('\n') : '';
+
+                        if (!ocmodBlockRE.test(lines)) {
+                            editor.undo();
+
+                            sess.$undoManager.$redoStack.pop();     //No permitir el redo
+                            sess.getSelection().clearSelection();
+
+                            ed.modified(modified);
+                        }
+                    }
+                }
+            );
+        }
+    }
 
     const langsLoaded = [];
 
@@ -2650,58 +2689,27 @@ class ControllerSample extends Controller {\n\
 
         langsLoaded.push(editorData.lang);
 
-        const langs = {
-            twig: [
-                {
-                    startRe: /\{#\s*<OCMOD>\s*#}/,
-                    endRe: /\{#\s*<\/OCMOD>\s*#}/,
-                    start: 'start'
-                }
-            ],
-            php: [
-                {
-                    startRe: /\s*\/\*<OCMOD>\*\//,
-                    endRe: /\s*\/\*<\/OCMOD>\*\//,
-                    start: 'php-start'
-                },
-                {
-                    startRe: /\s*\/\*<OCMOD>\*\//,
-                    endRe: /\s*\/\*<\/OCMOD>\*\//,
-                    start: 'js-start'
-                },
-                {
-                    startRe: /\s*\/\*<OCMOD>\*\//,
-                    endRe: /\s*\/\*<\/OCMOD>\*\//,
-                    start: 'css-start'
-                },
-                {
-                    startRe: /\s*\/\*<OCMOD>\*\//,
-                    endRe: /\s*\/\*<\/OCMOD>\*\//,
-                    start: 'start'
-                }
-            ],
-            javascript: [
-                {
-                    startRe: /\s*\/\*<OCMOD>\*\//,
-                    endRe: /\s*\/\*<\/OCMOD>\*\//,
-                    start: 'start'
-                }
-            ]
-        }
+        const startRe = /({#|\/\*|<!--)?[ \t]*<OCMOD>[ \t]*(#}|\*\/|-->)?/,
+            endRe = /({#|\/\*|<!--)?[ \t]*<\/OCMOD>[ \t]*(#}|\*\/|-->)?/,
+            langStarts = {
+                twig: ['js-start', 'css-start', 'js-no_regex', 'start'],
+                php: ['php-start', 'js-start', 'css-start', 'start'],
+                javascript: ['start']
+            }
 
-        if (editorData.lang in langs) {
+        if (editorData.lang in langStarts) {
             return function () {
-                langs[editorData.lang].forEach(function (rule) {
-                    editorData.editor.session.$mode.$highlightRules.$rules[rule.start].unshift(
+                langStarts[editorData.lang].forEach(function (start) {
+                    editorData.editor.session.$mode.$highlightRules.$rules[start].unshift(
                         {
                             token: '.ocmod-tag.ocmod-start',
-                            regex: rule.startRe,
-                            next: rule.start
+                            regex: startRe,
+                            next: start
                         },
                         {
                             token: '.ocmod-tag.ocmod-end',
-                            regex: rule.endRe,
-                            next: rule.start
+                            regex: endRe,
+                            next: start
                         }
                     );
                 })
@@ -2718,6 +2726,7 @@ class ControllerSample extends Controller {\n\
 
     enableNavButtons();
 
+    //Abrir los últimos archivos abiertos
     if ('openedFiles' in projectData()) {
         const dlg = getDlgContent('', '<div><strong>Abriendo archivo...</strong></div><div class="d-inline-block text-info" id="fname"></div><div id="file"></div>', null, {noButtons: true}),
             projData = projectData(),
